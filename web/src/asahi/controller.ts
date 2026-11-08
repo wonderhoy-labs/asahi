@@ -69,6 +69,8 @@ export interface AsahiState {
 	desktopStats: SessionStats | null;
 	hasPicture: boolean;
 	sound: SoundState;
+	/** The desktop at the phone's density, for apps such as Discord, at a little more latency. Remembered. */
+	sharp: boolean;
 	/** A file dropped on the desktop, on its way to the phone. */
 	transfer: { name: string; percent: number } | null;
 	/** What happened to the last one. */
@@ -85,6 +87,8 @@ const STORED_SERVERS = "asahi.servers";
 const STORED_USERNAME = "asahi.username";
 /** "off" keeps the phone's sound on the phone. */
 const STORED_SOUND = "asahi.sound";
+/** "on" gives the desktop the phone's density. */
+const STORED_SHARP = "asahi.sharp";
 /** Development only: extra options for the desktop server, such as --screen-on. */
 const STORED_DEV_DESKTOP_ARGS = "asahi.dev.desktop-args";
 const MAX_RECENT_SERVERS = 4;
@@ -183,6 +187,7 @@ export class Controller {
 		desktopStats: null,
 		hasPicture: false,
 		sound: "off",
+		sharp: stored(STORED_SHARP) === "on",
 		transfer: null,
 		transferNote: null,
 		busy: null,
@@ -918,7 +923,18 @@ export class Controller {
 			onSound: (sound) => this.update({ sound }),
 		});
 		this.session.setSound(stored(STORED_SOUND) !== "off");
+		// Read again here, so a choice made in another tab applies too.
+		const sharp = stored(STORED_SHARP) === "on";
+		this.update({ sharp });
+		this.session.setSharp(sharp);
 		if (this.state.desktop === "connecting") void this.openDesktopLink();
+	}
+
+	toggleSharp() {
+		const sharp = !this.state.sharp;
+		store(STORED_SHARP, sharp ? "on" : "off");
+		this.update({ sharp });
+		this.session?.setSharp(sharp);
 	}
 
 	/** Moves the phone's sound here, or back to the phone. From a click, which browsers need before playing sound. */

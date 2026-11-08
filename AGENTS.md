@@ -46,8 +46,8 @@ The site's build carries the release APK, so build the app first.
 - **The desktop messages are Shinonome's.** A change to the messages, sound, clipboard or encoder belongs in both, and
   each bumps its protocol number. Shinonome's `pnpm measure --features` checks the same server code against a phone.
 - **The Pixel's encoder ignores any operating rate above 480**, so `Encoder.MAX_OPERATING_RATE` caps it.
-- **React Native apps such as Discord draw clipped text** unless the desktop's density equals the phone's. It's their bug,
-  and it's in Known issues.
+- **React Native apps such as Discord draw clipped text** unless the desktop's density equals the phone's. Sharp mode
+  (`RESIZE_SHARP`) gives the desktop the phone's density and costs about 10 ms. Keep it opt-in.
 - The desktop server's process setup is adapted from scrcpy, under the Apache License 2.0. Keep its notice.
 - Never replace the Android signing key. CI signs with the `ASAHI_KEYSTORE_BASE64`, `ASAHI_KEYSTORE_PASSWORD`,
   `ASAHI_KEY_ALIAS` and `ASAHI_KEY_PASSWORD` secrets.

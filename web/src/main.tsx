@@ -19,6 +19,7 @@ import "@mdui/icons/dns.js";
 import "@mdui/icons/download.js";
 import "@mdui/icons/error-outline.js";
 import "@mdui/icons/fullscreen.js";
+import "@mdui/icons/hd.js";
 import "@mdui/icons/history.js";
 import "@mdui/icons/info.js";
 import "@mdui/icons/install-mobile.js";
