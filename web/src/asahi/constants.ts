@@ -10,7 +10,7 @@ export const DESKTOP_SOCKET = "localabstract:asahi-desktop";
 export const SERVER_DIR = "/data/local/tmp/asahi";
 export const SCRIPT_PATH = `${SERVER_DIR}/start.sh`;
 /** Must match PROTOCOL in Server.java. A server with another number gets replaced by the one here. */
-export const DESKTOP_PROTOCOL = 1;
+export const DESKTOP_PROTOCOL = 2;
 
 export const APK_PATH = "asahi.apk";
 export const REPO_URL = "https://github.com/wonderhoy-labs/asahi";

@@ -43,6 +43,11 @@ The site's build carries the release APK, so build the app first.
 - **Test sessions in real Chrome.** The Claude app's built-in browser pane crashes its renderer when a session
   ends over the dev adb-server path.
 - wisp-js comes from the fork `wonderhoy-labs/wisp-js`, pinned by commit, as in Shira.
+- **The desktop messages are Shinonome's.** A change to the messages, sound, clipboard or encoder belongs in both, and
+  each bumps its protocol number. Shinonome's `pnpm measure --features` checks the same server code against a phone.
+- **The Pixel's encoder ignores any operating rate above 480**, so `Encoder.MAX_OPERATING_RATE` caps it.
+- **React Native apps such as Discord draw clipped text** unless the desktop's density equals the phone's. It's their bug,
+  and it's in Known issues.
 - The desktop server's process setup is adapted from scrcpy, under the Apache License 2.0. Keep its notice.
 - Never replace the Android signing key. CI signs with the `ASAHI_KEYSTORE_BASE64`, `ASAHI_KEYSTORE_PASSWORD`,
   `ASAHI_KEY_ALIAS` and `ASAHI_KEY_PASSWORD` secrets.

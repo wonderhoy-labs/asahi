@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { InstallError, installFailureReason, isServerReady, parseAppInfo, serverIncompatibility } from "./phone";
+import { DESKTOP_PROTOCOL } from "../asahi/constants";
+import {
+	freeFileName,
+	InstallError,
+	installFailureReason,
+	isServerReady,
+	parseAppInfo,
+	safeFileName,
+	serverIncompatibility,
+} from "./phone";
 
 describe("parseAppInfo", () => {
 	it("reads an installed app", () => {
@@ -40,7 +49,7 @@ describe("InstallError", () => {
 });
 
 describe("isServerReady", () => {
-	const log = "protocol: 1\ndisplay 6 created\nlistening\n";
+	const log = `protocol: ${DESKTOP_PROTOCOL}\ndisplay 6 created\nlistening\n`;
 
 	it("wants the protocol and the listening line", () => {
 		expect(isServerReady(log)).toBe(true);
@@ -51,7 +60,7 @@ describe("isServerReady", () => {
 	});
 
 	it("turns down a server that is still starting", () => {
-		expect(isServerReady("protocol: 1\n")).toBe(false);
+		expect(isServerReady(`protocol: ${DESKTOP_PROTOCOL}\n`)).toBe(false);
 	});
 
 	it("turns down a server that never said its protocol", () => {
@@ -59,7 +68,7 @@ describe("isServerReady", () => {
 	});
 
 	it("turns down a server with another protocol", () => {
-		expect(isServerReady("protocol: 2\nlistening\n")).toBe(false);
+		expect(isServerReady(`protocol: ${DESKTOP_PROTOCOL - 1}\nlistening\n`)).toBe(false);
 	});
 
 	it("treats no output as no server", () => {
@@ -76,5 +85,37 @@ describe("serverIncompatibility", () => {
 
 	it("is null for a server that started", () => {
 		expect(serverIncompatibility("protocol: 1\nlistening\n")).toBeNull();
+	});
+});
+
+describe("safeFileName", () => {
+	it("keeps an ordinary name", () => {
+		expect(safeFileName("Holiday photo.jpg")).toBe("Holiday photo.jpg");
+	});
+
+	it("replaces slashes and control characters", () => {
+		expect(safeFileName("a/b\\c\u0007.txt")).toBe("a_b_c_.txt");
+	});
+
+	it("never gives an empty or special name", () => {
+		expect(safeFileName("  ")).toBe("file");
+		expect(safeFileName("..")).toBe("file");
+	});
+
+	it("shortens a long name but keeps its extension", () => {
+		const name = safeFileName(`${"x".repeat(300)}.pdf`);
+		expect(name.length).toBe(200);
+		expect(name.endsWith(".pdf")).toBe(true);
+	});
+});
+
+describe("freeFileName", () => {
+	it("uses the name when it's free", () => {
+		expect(freeFileName("notes.txt", new Set(["other.txt"]))).toBe("notes.txt");
+	});
+
+	it("numbers it the way Android does", () => {
+		expect(freeFileName("notes.txt", new Set(["notes.txt", "notes (1).txt"]))).toBe("notes (2).txt");
+		expect(freeFileName("README", new Set(["README"]))).toBe("README (1)");
 	});
 });

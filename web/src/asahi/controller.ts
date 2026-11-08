@@ -4,8 +4,8 @@ import startScript from "../../../android/app/src/main/assets/start.sh?raw";
 import { type AppInfo, InstallError, type Phone, type PhoneKind, serverIncompatibility } from "../adb/phone";
 import { authorizeUsb, claimUsb, knownPhone, pickPhone, UsbBusyError, type UsbConnection } from "../adb/usb";
 import { exposeDebugApi } from "../desktop/debug";
-import { DesktopSession, type SessionStats } from "../desktop/desktop-session";
-import { FrameReader, frameMessage } from "../desktop/frames";
+import { DesktopSession, type SessionStats, type SoundState } from "../desktop/desktop-session";
+import { batchedWriter, FrameReader } from "../desktop/frames";
 import type { DesktopStatus } from "../desktop/protocol";
 import { CLOSE_NETWORK_ERROR, LinkStatus, MetaKind, StreamType } from "../link/frames";
 import { ProtocolMismatchError, Relay, type RelayEvents } from "../link/relay";
@@ -68,6 +68,11 @@ export interface AsahiState {
 	desktopStatus: DesktopStatus | null;
 	desktopStats: SessionStats | null;
 	hasPicture: boolean;
+	sound: SoundState;
+	/** A file dropped on the desktop, on its way to the phone. */
+	transfer: { name: string; percent: number } | null;
+	/** What happened to the last one. */
+	transferNote: string | null;
 
 	/** What to tell the person to do while something's happening. */
 	busy: string | null;
@@ -78,11 +83,14 @@ export interface AsahiState {
 const STORED_SERVER = "asahi.server";
 const STORED_SERVERS = "asahi.servers";
 const STORED_USERNAME = "asahi.username";
+/** "off" keeps the phone's sound on the phone. */
+const STORED_SOUND = "asahi.sound";
 /** Development only: extra options for the desktop server, such as --screen-on. */
 const STORED_DEV_DESKTOP_ARGS = "asahi.dev.desktop-args";
 const MAX_RECENT_SERVERS = 4;
 
 const POLL_MILLIS = 1_000;
+const TRANSFER_NOTE_MILLIS = 4_000;
 const FIRST_RETRY_MILLIS = 1_000;
 const MAX_RETRY_MILLIS = 15_000;
 const SLOW_ACTIVATE_MILLIS = 10_000;
@@ -174,6 +182,9 @@ export class Controller {
 		desktopStatus: null,
 		desktopStats: null,
 		hasPicture: false,
+		sound: "off",
+		transfer: null,
+		transferNote: null,
 		busy: null,
 		error: null,
 		notice: null,
@@ -203,6 +214,8 @@ export class Controller {
 	private session: DesktopSession | null = null;
 	private desktopSocket: AdbSocket | null = null;
 	private desktopJob = 0;
+	private transferNoteTimer: ReturnType<typeof setTimeout> | undefined;
+	private sending = false;
 	private desktopOpening: Promise<void> = Promise.resolve();
 
 	constructor() {
@@ -902,8 +915,54 @@ export class Controller {
 			onAuthenticated: () => this.update({ desktop: "up" }),
 			onReplaced: () =>
 				this.endDesktopLink("Another window took over the desktop. Start it here to take it back."),
+			onSound: (sound) => this.update({ sound }),
 		});
+		this.session.setSound(stored(STORED_SOUND) !== "off");
 		if (this.state.desktop === "connecting") void this.openDesktopLink();
+	}
+
+	/** Moves the phone's sound here, or back to the phone. From a click, which browsers need before playing sound. */
+	toggleSound() {
+		const { sound } = this.state;
+		const on = sound === "off" || sound === "needs-click";
+		store(STORED_SOUND, on ? "on" : "off");
+		this.session?.setSound(on);
+	}
+
+	/** Copies files dropped on the desktop into the phone's Downloads, one at a time. */
+	async saveToPhone(files: File[]) {
+		const phone = this.phone;
+		if (!phone || files.length === 0 || this.sending) {
+			return;
+		}
+		this.sending = true;
+		const saved: string[] = [];
+		let failure: string | null = null;
+		for (const file of files) {
+			this.update({ transfer: { name: file.name, percent: 0 } });
+			try {
+				saved.push(
+					await phone.saveToDownloads(file, (fraction) => {
+						const percent = Math.floor(fraction * 100);
+						if (percent !== this.state.transfer?.percent) {
+							this.update({ transfer: { name: file.name, percent } });
+						}
+					}),
+				);
+			} catch (error) {
+				failure = `Couldn't send ${file.name} to your phone: ${message(error)}`;
+				break;
+			}
+		}
+		this.sending = false;
+		const note =
+			failure ??
+			(saved.length === 1
+				? `Saved ${saved[0]} in your phone's Downloads.`
+				: `Saved ${saved.length} files in your phone's Downloads.`);
+		this.update({ transfer: null, transferNote: note });
+		clearTimeout(this.transferNoteTimer);
+		this.transferNoteTimer = setTimeout(() => this.update({ transferNote: null }), TRANSFER_NOTE_MILLIS);
 	}
 
 	releaseCanvas() {
@@ -943,7 +1002,7 @@ export class Controller {
 		this.desktopSocket = socket;
 		const writer = socket.writable.getWriter();
 		// A lost link shows up on the reading side, which reconnects.
-		session.attach((data) => void writer.write(frameMessage(data)).catch(() => undefined));
+		session.attach(batchedWriter((bytes) => void writer.write(bytes).catch(() => undefined)));
 
 		const frames = new FrameReader();
 		const reader = socket.readable.getReader();
