@@ -1,18 +1,18 @@
 // The messages between the page and the desktop server. Must match Server.java.
 
 export const MessageType = {
-  Video: 1,
-  Status: 2,
-  Pong: 3,
-  AuthResult: 5,
-  Replaced: 6,
-  Mouse: 16,
-  Scroll: 17,
-  Key: 18,
-  Ping: 19,
-  Stop: 20,
-  KeyFrame: 22,
-  Resize: 23,
+	Video: 1,
+	Status: 2,
+	Pong: 3,
+	AuthResult: 5,
+	Replaced: 6,
+	Mouse: 16,
+	Scroll: 17,
+	Key: 18,
+	Ping: 19,
+	Stop: 20,
+	KeyFrame: 22,
+	Resize: 23,
 } as const;
 
 export const AUTH_OK = 1;
@@ -29,12 +29,12 @@ export const KEY_DOWN = 0;
 export const KEY_UP = 1;
 
 export interface DesktopStatus {
-  displayId: number;
-  width: number;
-  height: number;
-  locked: boolean;
-  usable: boolean;
-  desktop: boolean;
-  encoder: string;
-  dropped: number;
+	displayId: number;
+	width: number;
+	height: number;
+	locked: boolean;
+	usable: boolean;
+	desktop: boolean;
+	encoder: string;
+	dropped: number;
 }

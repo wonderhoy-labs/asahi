@@ -7,11 +7,10 @@
 <p align="center">Your Pixel's desktop in a browser tab, online through the same cable.</p>
 
 <p align="center">
-  <a href="https://github.com/wonderhoy-labs/asahi/actions/workflows/build.yml"><img src="https://github.com/wonderhoy-labs/asahi/actions/workflows/build.yml/badge.svg" alt="Build"></a>
+  <a href="https://github.com/wonderhoy-labs/asahi/actions/workflows/ci.yml"><img src="https://github.com/wonderhoy-labs/asahi/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="License: Apache 2.0"></a>
+  <a href="#license-and-credits"><img src="https://img.shields.io/badge/Asahina%20Mafuyu-25--ji%2C%20Nightcord%20de.-8888CC" alt="Named for Asahina Mafuyu of 25-ji, Nightcord de."></a>
 </p>
-
-<p align="center"><sub>A <a href="https://github.com/wonderhoy-labs">Wonderhoy Labs</a> project</sub></p>
 
 Asahi puts your phone's desktop in a web page, and gets the phone online through that same page. You plug your phone into a
 computer, open the page in Chrome, and use Android's own desktop mode with your mouse and keyboard, while everything the phone
@@ -199,7 +198,7 @@ server wakes the phone whenever it sleeps and turns off only its screen.
 
 When the desktop ends, Android moves its windows back to the phone. They come back to the same places next time.
 
-## Security
+## Security and privacy
 
 Worth reading before you use this.
 
@@ -267,7 +266,14 @@ connected.
 
 ## Development
 
-You need Node 22 or newer, JDK 17 or newer, and the Android SDK with platform 37. On Windows, use `gradlew.bat`.
+You need Node 24 or newer with pnpm, JDK 17 or newer, and the Android SDK with platform 37. On Windows, use `gradlew.bat`.
+
+Asahi follows the [Wonderhoy Labs guideline](.claude/skills/wonderhoy-unification/SKILL.md), like every Wonderhoy Labs project.
+The shared tools need Node 24 or newer and pnpm. Format before you commit, and check the result:
+
+```bash
+pnpm install && pnpm format && pnpm unify
+```
 
 | Where | What's in it |
 | --- | --- |
@@ -284,6 +290,7 @@ You need Node 22 or newer, JDK 17 or newer, and the Android SDK with platform 37
 | `web/src/ui/` | The page's screens, in React with [mdui](https://github.com/zdhxiong/mdui) for Material 3 |
 | `web/plugins/` | The Vite plugin: the APK, and the development servers |
 | `VERSION` | The version, for both the app and the page |
+| `tools/` | The shared Wonderhoy Labs tools: `theme.ts` makes the colours, `unify.ts` checks the guideline |
 
 Build the app, then start the page:
 
@@ -292,7 +299,7 @@ cd android && ./gradlew :app:assembleDebug
 ```
 
 ```bash
-cd web && npm ci --ignore-scripts && npm run dev
+pnpm install && cd web && pnpm dev
 ```
 
 The development server does a few things production gets from elsewhere:
@@ -319,7 +326,7 @@ cd android && ./gradlew :app:assembleRelease
 ```
 
 ```bash
-cd web && npm run build && npm run preview
+cd web && pnpm build && pnpm preview
 ```
 
 Tests:
@@ -329,7 +336,7 @@ cd android && ./gradlew :app:testDebugUnitTest
 ```
 
 ```bash
-cd web && npm test
+cd web && pnpm test
 ```
 
 `ScreenTest` draws every state of the app's screen and saves pictures. Run it on an emulator with `am instrument`, because Gradle's
@@ -352,9 +359,11 @@ The pictures end up in `/sdcard/Android/data/com.wonderhoylabs.asahi/files/scree
 Release APKs are signed with your debug key unless you set `ASAHI_KEYSTORE`, `ASAHI_KEYSTORE_PASSWORD`, `ASAHI_KEY_ALIAS` and
 `ASAHI_KEY_PASSWORD`.
 
-Pushing to `main` builds everything. To publish the site to GitHub Pages as well, pick GitHub Actions as the repository's Pages
-source and set the repository variable `PUBLISH_SITE` to `true`. Pushing a tag like `v0.1.0` publishes a GitHub release, and it has
-to match `VERSION`. See [build.yml](.github/workflows/build.yml) for the signing secrets it can use.
+Pushing to `main` builds everything through [ci.yml](.github/workflows/ci.yml) and publishes the site to GitHub Pages, whose source
+has to be GitHub Actions. Pushing a tag like `v0.1.0`, matching `VERSION`, builds everything and publishes a GitHub release through
+[ci.yml](.github/workflows/ci.yml). It signs the APK with the repository's `ASAHI_KEYSTORE_BASE64`, `ASAHI_KEYSTORE_PASSWORD`,
+`ASAHI_KEY_ALIAS` and `ASAHI_KEY_PASSWORD` secrets. Without them, each release gets a throwaway key and has to be installed
+fresh instead of updating.
 
 ## License and credits
 
@@ -378,3 +387,7 @@ It stands on the work of these projects:
 - [Jetpack Compose and AndroidX](https://developer.android.com/jetpack) (Apache 2.0), for the Android app
 
 The site publishes everything it bundles, with license texts, as `third-party-licenses.txt`.
+
+Asahi is named for Asahina Mafuyu of 25-ji, Nightcord de., from Project SEKAI COLORFUL STAGE! feat. Hatsune Miku. Wonderhoy Labs is a
+fan project, not affiliated with SEGA, Colorful Palette or Crypton Future Media, who own Project SEKAI and its characters.
+The Apache License doesn't cover the Asahi name or logo.

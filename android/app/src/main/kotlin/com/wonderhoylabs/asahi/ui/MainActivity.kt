@@ -23,77 +23,77 @@ import com.wonderhoylabs.asahi.vpn.AsahiState
 import com.wonderhoylabs.asahi.vpn.AsahiVpnService
 
 class MainActivity : ComponentActivity() {
-    private var activateWhenResumed = false
+	private var activateWhenResumed = false
 
-    private val consent = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            startService()
-        } else {
-            AsahiState.setError(getString(R.string.error_refused))
-        }
-    }
+	private val consent = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+		if (result.resultCode == Activity.RESULT_OK) {
+			startService()
+		} else {
+			AsahiState.setError(getString(R.string.error_refused))
+		}
+	}
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        enableEdgeToEdge()
-        super.onCreate(savedInstanceState)
-        // Turning the phone re-creates this with the same intent, which shouldn't activate anything.
-        if (savedInstanceState == null) handleIntent(intent)
-        setContent {
-            val status by AsahiState.status.collectAsStateWithLifecycle()
-            val error by AsahiState.error.collectAsStateWithLifecycle()
-            val actions = remember {
-                ScreenActions(
-                    onActivate = ::activate,
-                    onDeactivate = { AsahiVpnService.stop(this) },
-                    onDismissError = { AsahiState.setError(null) },
-                )
-            }
-            AsahiTheme {
-                Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    AsahiScreen(ScreenState(status, error), actions)
-                }
-            }
-        }
-    }
+	override fun onCreate(savedInstanceState: Bundle?) {
+		enableEdgeToEdge()
+		super.onCreate(savedInstanceState)
+		// Turning the phone re-creates this with the same intent, which shouldn't activate anything.
+		if (savedInstanceState == null) handleIntent(intent)
+		setContent {
+			val status by AsahiState.status.collectAsStateWithLifecycle()
+			val error by AsahiState.error.collectAsStateWithLifecycle()
+			val actions = remember {
+				ScreenActions(
+					onActivate = ::activate,
+					onDeactivate = { AsahiVpnService.stop(this) },
+					onDismissError = { AsahiState.setError(null) },
+				)
+			}
+			AsahiTheme {
+				Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+					AsahiScreen(ScreenState(status, error), actions)
+				}
+			}
+		}
+	}
 
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        setIntent(intent)
-        handleIntent(intent)
-    }
+	override fun onNewIntent(intent: Intent) {
+		super.onNewIntent(intent)
+		setIntent(intent)
+		handleIntent(intent)
+	}
 
-    override fun onResume() {
-        super.onResume()
-        // A locked phone creates this screen without showing it, and a hidden screen can't start the service.
-        if (activateWhenResumed) {
-            activateWhenResumed = false
-            activate()
-        }
-    }
+	override fun onResume() {
+		super.onResume()
+		// A locked phone creates this screen without showing it, and a hidden screen can't start the service.
+		if (activateWhenResumed) {
+			activateWhenResumed = false
+			activate()
+		}
+	}
 
-    /** The web page opens this screen through the name only adb may use, to say it should turn on. */
-    private fun handleIntent(intent: Intent?) {
-        if (intent?.component?.className == "$packageName$ACTIVATE_ALIAS") activateWhenResumed = true
-    }
+	/** The web page opens this screen through the name only adb may use, to say it should turn on. */
+	private fun handleIntent(intent: Intent?) {
+		if (intent?.component?.className == "$packageName$ACTIVATE_ALIAS") activateWhenResumed = true
+	}
 
-    private fun activate() {
-        val prompt = VpnService.prepare(this)
-        if (prompt == null) startService() else consent.launch(prompt)
-    }
+	private fun activate() {
+		val prompt = VpnService.prepare(this)
+		if (prompt == null) startService() else consent.launch(prompt)
+	}
 
-    private fun startService() {
-        // Not any earlier, or this would land on top of the VPN's own question.
-        if (
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-        ) {
-            requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), REQUEST_NOTIFICATIONS)
-        }
-        AsahiVpnService.start(this)
-    }
+	private fun startService() {
+		// Not any earlier, or this would land on top of the VPN's own question.
+		if (
+			Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+			checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+		) {
+			requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), REQUEST_NOTIFICATIONS)
+		}
+		AsahiVpnService.start(this)
+	}
 
-    private companion object {
-        const val ACTIVATE_ALIAS = ".Activate"
-        const val REQUEST_NOTIFICATIONS = 1
-    }
+	private companion object {
+		const val ACTIVATE_ALIAS = ".Activate"
+		const val REQUEST_NOTIFICATIONS = 1
+	}
 }
