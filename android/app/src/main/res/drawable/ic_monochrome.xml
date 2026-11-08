@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A sun on the horizon, because asahi is the morning sun. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path android:fillColor="#FFFFFFFF" android:pathData="M38,62A16,16 0,0 1,70 62Z" />
+    <path android:fillColor="#FFFFFFFF" android:pathData="M24,66h60a2,2 0,0 1,0 4h-60a2,2 0,0 1,0 -4z" />
+    <group android:pivotX="54" android:pivotY="62" android:rotation="0">
+        <path android:fillColor="#FFFFFFFF" android:pathData="M54,32a2,2 0,0 1,2 2v8a2,2 0,0 1,-4 0v-8a2,2 0,0 1,2 -2z" />
+    </group>
+    <group android:pivotX="54" android:pivotY="62" android:rotation="-45">
+        <path android:fillColor="#FFFFFFFF" android:pathData="M54,32a2,2 0,0 1,2 2v8a2,2 0,0 1,-4 0v-8a2,2 0,0 1,2 -2z" />
+    </group>
+    <group android:pivotX="54" android:pivotY="62" android:rotation="45">
+        <path android:fillColor="#FFFFFFFF" android:pathData="M54,32a2,2 0,0 1,2 2v8a2,2 0,0 1,-4 0v-8a2,2 0,0 1,2 -2z" />
+    </group>
+    <group android:pivotX="54" android:pivotY="62" android:rotation="-80">
+        <path android:fillColor="#FFFFFFFF" android:pathData="M54,32a2,2 0,0 1,2 2v8a2,2 0,0 1,-4 0v-8a2,2 0,0 1,2 -2z" />
+    </group>
+    <group android:pivotX="54" android:pivotY="62" android:rotation="80">
+        <path android:fillColor="#FFFFFFFF" android:pathData="M54,32a2,2 0,0 1,2 2v8a2,2 0,0 1,-4 0v-8a2,2 0,0 1,2 -2z" />
+    </group>
+</vector>
