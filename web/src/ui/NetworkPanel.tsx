@@ -1,8 +1,17 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
+import {
+	describeClose,
+	describeQueryType,
+	formatBytes,
+	formatDuration,
+	formatRate,
+	formatTime,
+	type LogRow,
+	type LogTotals,
+	type RowKind,
+} from "@wonderhoy-labs/shira";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { AsahiState, Controller } from "../asahi/controller";
-import { describeClose, describeQueryType, formatBytes, formatDuration, formatRate, formatTime } from "../log/format";
-import type { LogRow, LogTotals, RowKind } from "../log/store";
 
 const REFRESH_MILLIS = 250;
 const ROW_HEIGHT = 60;

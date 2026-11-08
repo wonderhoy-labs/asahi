@@ -1,6 +1,7 @@
+import shiraApkUrl from "@wonderhoy-labs/shira/shira.apk?url";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { isUsbAvailable } from "../adb/usb";
-import { RELEASES_URL } from "../asahi/constants";
+import { SHIRA_RELEASES_URL } from "../asahi/constants";
 import { type AsahiState, type Controller, type LaunchStage, SETUP_STEPS, type Step } from "../asahi/controller";
 
 interface Props {
@@ -39,7 +40,7 @@ export function Onboarding({ controller, state }: Props) {
 						step="app"
 						state={state}
 						title="Install the app"
-						summary={state.app?.versionName ? `Asahi ${state.app.versionName}` : null}
+						summary={state.app?.versionName ? `Shira ${state.app.versionName}` : null}
 						onChange={() => controller.goBack("app")}
 					>
 						<AppStep controller={controller} state={state} />
@@ -357,7 +358,7 @@ function AppStep({ controller, state }: Props) {
 			<>
 				<p>
 					{state.installProgress < 1
-						? `Sending Asahi ${__ASAHI_VERSION__} to your phone.`
+						? `Sending Shira ${__SHIRA_VERSION__} to your phone.`
 						: "Your phone is installing it."}
 				</p>
 				<mdui-linear-progress value={state.installProgress < 1 ? state.installProgress : undefined} max={1} />
@@ -372,11 +373,11 @@ function AppStep({ controller, state }: Props) {
 					can check again whenever you're ready.
 				</p>
 				<div className="actions">
-					<mdui-button variant="tonal" href="asahi.apk" download={`asahi-v${__ASAHI_VERSION__}.apk`}>
+					<mdui-button variant="tonal" href={shiraApkUrl} download={`shira-v${__SHIRA_VERSION__}.apk`}>
 						<mdui-icon-download slot="icon" />
 						Download APK
 					</mdui-button>
-					<mdui-button variant="text" href={RELEASES_URL} target="_blank" rel="noreferrer">
+					<mdui-button variant="text" href={SHIRA_RELEASES_URL} target="_blank" rel="noreferrer">
 						All releases
 					</mdui-button>
 					<mdui-button variant="text" onClick={() => controller.cancelManualInstall()}>
@@ -390,8 +391,8 @@ function AppStep({ controller, state }: Props) {
 	return (
 		<>
 			<p>
-				The app is what gives your phone its connection, and it carries the desktop. This page only installs it
-				if you ask.
+				Asahi's app is Shira, which gives your phone its connection. The desktop needs nothing installed. This
+				page only installs Shira if you ask.
 			</p>
 			<AppStatus state={state} />
 			<div className="actions">
@@ -431,7 +432,7 @@ function AppStatus({ state }: { state: AsahiState }) {
 			<div className="callout callout-good">
 				<mdui-icon-check-circle />
 				<span>
-					<strong>Asahi {app.versionName}</strong> is installed on your phone.
+					<strong>Shira {app.versionName}</strong> is installed on your phone.
 				</span>
 			</div>
 		);
@@ -441,7 +442,7 @@ function AppStatus({ state }: { state: AsahiState }) {
 			<div className="callout">
 				<mdui-icon-info />
 				<span>
-					Your phone has Asahi {app.versionName}, and this page needs {__ASAHI_VERSION__} or newer.
+					Your phone has Shira {app.versionName}, and this page needs {__SHIRA_VERSION__} or newer.
 				</span>
 			</div>
 		);
@@ -449,7 +450,7 @@ function AppStatus({ state }: { state: AsahiState }) {
 	return (
 		<div className="callout">
 			<mdui-icon-info />
-			<span>Asahi isn't on your phone yet.</span>
+			<span>Shira isn't on your phone yet.</span>
 		</div>
 	);
 }

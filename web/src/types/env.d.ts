@@ -13,7 +13,9 @@ declare module "react" {
 }
 
 declare global {
-	/** The version in VERSION, which the app and this page share. */
+	/** Asahi's own version, from VERSION. */
 	const __ASAHI_VERSION__: string;
-	const __ASAHI_VERSION_CODE__: number;
+	/** The version of Shira's app that this page carries, from @wonderhoy-labs/shira. */
+	const __SHIRA_VERSION__: string;
+	const __SHIRA_VERSION_CODE__: number;
 }

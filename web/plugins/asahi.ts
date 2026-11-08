@@ -1,4 +1,4 @@
-import { createReadStream, existsSync, readFileSync, statSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import type { IncomingMessage, Server } from "node:http";
 import type { Duplex } from "node:stream";
 import { fileURLToPath } from "node:url";
@@ -9,8 +9,6 @@ import { thirdPartyNotices } from "./notices.ts";
 
 const repo = (path: string) => fileURLToPath(new URL(`../../${path}`, import.meta.url));
 
-const DEBUG_APK = "android/app/build/outputs/apk/debug/app-debug.apk";
-const RELEASE_APK = "android/app/build/outputs/apk/release/app-release.apk";
 const WISP_PATH = "/wisp/";
 const ADB_PATH = "/__asahi/adb";
 
@@ -47,14 +45,20 @@ function serveWisp(httpServer: Server | null, withAdb: boolean) {
 }
 
 /**
- * Puts the APK next to the site, and tells the page what version it is.
+ * Tells the page its version and the version of Shira's app it carries. The apps themselves come with the Shira and
+ * Shinonome libraries.
  *
  * During development this also runs what production gets from elsewhere: a Wisp server for the page to
  * use, and a way to reach an emulator, which has no USB for the page to find it through.
  */
 export function asahi(): Plugin {
 	const version = readFileSync(repo("VERSION"), "utf8").trim();
-	const [major = 0, minor = 0, patch = 0] = version.split(".").map(Number);
+	const shira = (
+		JSON.parse(readFileSync(repo("web/node_modules/@wonderhoy-labs/shira/package.json"), "utf8")) as {
+			version: string;
+		}
+	).version;
+	const [major = 0, minor = 0, patch = 0] = shira.split(".").map(Number);
 
 	return {
 		name: "asahi",
@@ -62,25 +66,14 @@ export function asahi(): Plugin {
 		config: () => ({
 			define: {
 				__ASAHI_VERSION__: JSON.stringify(version),
-				__ASAHI_VERSION_CODE__: major * 10_000 + minor * 100 + patch,
+				__SHIRA_VERSION__: JSON.stringify(shira),
+				__SHIRA_VERSION_CODE__: major * 10_000 + minor * 100 + patch,
 			},
 		}),
 
 		configureServer(server) {
 			const httpServer = server.httpServer as Server | null;
 			serveWisp(httpServer, true);
-
-			server.middlewares.use("/asahi.apk", (_request, response) => {
-				const path = process.env.ASAHI_APK || repo(DEBUG_APK);
-				if (!existsSync(path)) {
-					response.statusCode = 404;
-					response.end("Build the APK first: cd android && ./gradlew :app:assembleDebug");
-					return;
-				}
-				response.setHeader("Content-Type", "application/vnd.android.package-archive");
-				response.setHeader("Content-Length", statSync(path).size);
-				createReadStream(path).pipe(response);
-			});
 		},
 
 		// So that a production build can be tried from start to finish, without another server to run.
@@ -89,13 +82,6 @@ export function asahi(): Plugin {
 		},
 
 		generateBundle() {
-			const path = process.env.ASAHI_APK || repo(RELEASE_APK);
-			if (!existsSync(path)) {
-				this.error(
-					`There's no APK at ${path}. The site carries it, so build it first: cd android && ./gradlew :app:assembleRelease`,
-				);
-			}
-			this.emitFile({ type: "asset", fileName: "asahi.apk", source: readFileSync(path) });
 			this.emitFile({
 				type: "asset",
 				fileName: "third-party-licenses.txt",
