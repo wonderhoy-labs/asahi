@@ -1,34 +1,34 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Asahi</string>
-    <string name="tagline">Your desktop and network over USB</string>
-    <string name="site_address" translatable="false">wonderhoy-labs.github.io/asahi</string>
+	<string name="app_name">Asahi</string>
+	<string name="tagline">Your desktop and network over USB</string>
+	<string name="site_address" translatable="false">wonderhoy-labs.github.io/asahi</string>
 
-    <string name="activate">Turn on</string>
-    <string name="deactivate">Turn off</string>
-    <string name="dismiss">Dismiss</string>
+	<string name="activate">Turn on</string>
+	<string name="deactivate">Turn off</string>
+	<string name="dismiss">Dismiss</string>
 
-    <string name="status_off">Off</string>
-    <string name="status_off_body">The web page turns this on for you when you click Launch. You can also turn it on here.</string>
-    <string name="status_waiting">Waiting for your computer</string>
-    <string name="status_waiting_body">Your network keeps working as normal until the web page connects.</string>
-    <string name="status_connected">Online through your computer</string>
-    <string name="status_connected_body">Through %1$s</string>
-    <string name="stat_down">Downloaded</string>
-    <string name="stat_up">Uploaded</string>
-    <string name="stat_connections">Connections</string>
+	<string name="status_off">Off</string>
+	<string name="status_off_body">The web page turns this on for you when you click Launch. You can also turn it on here.</string>
+	<string name="status_waiting">Waiting for your computer</string>
+	<string name="status_waiting_body">Your network keeps working as normal until the web page connects.</string>
+	<string name="status_connected">Online through your computer</string>
+	<string name="status_connected_body">Through %1$s</string>
+	<string name="stat_down">Downloaded</string>
+	<string name="stat_up">Uploaded</string>
+	<string name="stat_connections">Connections</string>
 
-    <string name="steps_title">How to use it</string>
-    <string name="step_cable">Turn on USB debugging in Developer options, and plug this phone into a computer.</string>
-    <string name="step_site">On the computer, open %1$s in Chrome or Edge.</string>
-    <string name="step_server">Pick a Wisp server and click Launch. Your desktop opens in the browser, and this phone gets online through it.</string>
+	<string name="steps_title">How to use it</string>
+	<string name="step_cable">Turn on USB debugging in Developer options, and plug this phone into a computer.</string>
+	<string name="step_site">On the computer, open %1$s in Chrome or Edge.</string>
+	<string name="step_server">Pick a Wisp server and click Launch. Your desktop opens in the browser, and this phone gets online through it.</string>
 
-    <string name="notification_channel">Status</string>
-    <string name="notification_waiting">Waiting for your computer</string>
-    <string name="notification_connected">Online through %1$s</string>
+	<string name="notification_channel">Status</string>
+	<string name="notification_waiting">Waiting for your computer</string>
+	<string name="notification_connected">Online through %1$s</string>
 
-    <string name="error_refused">Android needs your OK before Asahi can act as a VPN.</string>
-    <string name="error_revoked">Asahi was turned off because another VPN took over, or it was turned off in Settings.</string>
-    <string name="error_not_prepared">Another VPN has taken over. Click Launch on the web page again, or turn Asahi on here.</string>
-    <string name="error_socket_taken">Another app is using Asahi\'s connection name. Restart the phone and try again.</string>
+	<string name="error_refused">Android needs your OK before Asahi can act as a VPN.</string>
+	<string name="error_revoked">Asahi was turned off because another VPN took over, or it was turned off in Settings.</string>
+	<string name="error_not_prepared">Another VPN has taken over. Click Launch on the web page again, or turn Asahi on here.</string>
+	<string name="error_socket_taken">Another app is using Asahi\'s connection name. Restart the phone and try again.</string>
 </resources>

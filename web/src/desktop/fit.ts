@@ -7,14 +7,14 @@ const MIN_RATIO = 1;
 const MAX_RATIO = 21 / 9;
 
 function even(value: number): number {
-  return Math.round(value / 2) * 2;
+	return Math.round(value / 2) * 2;
 }
 
 export function fitDesktopSize(windowWidth: number, windowHeight: number): [number, number] {
-  if (windowWidth <= 0 || windowHeight <= 0) {
-    return [MAX_WIDTH, even((MAX_WIDTH * 9) / 16)];
-  }
-  const ratio = Math.min(MAX_RATIO, Math.max(MIN_RATIO, windowWidth / windowHeight));
-  const height = MAX_WIDTH / ratio;
-  return height <= MAX_HEIGHT ? [MAX_WIDTH, even(height)] : [even(MAX_HEIGHT * ratio), MAX_HEIGHT];
+	if (windowWidth <= 0 || windowHeight <= 0) {
+		return [MAX_WIDTH, even((MAX_WIDTH * 9) / 16)];
+	}
+	const ratio = Math.min(MAX_RATIO, Math.max(MIN_RATIO, windowWidth / windowHeight));
+	const height = MAX_WIDTH / ratio;
+	return height <= MAX_HEIGHT ? [MAX_WIDTH, even(height)] : [even(MAX_HEIGHT * ratio), MAX_HEIGHT];
 }

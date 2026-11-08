@@ -15,28 +15,28 @@ import androidx.annotation.RequiresApi;
 @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
 final class KeepAlive {
 
-    private static final String TAG = "asahi:desktop";
+	private static final String TAG = "asahi:desktop";
 
-    private final Context context;
-    private boolean held;
+	private final Context context;
+	private boolean held;
 
-    KeepAlive(Context context) {
-        this.context = context;
-    }
+	KeepAlive(Context context) {
+		this.context = context;
+	}
 
-    void acquire() {
-        if (held) {
-            return;
-        }
-        held = true;
-        try {
-            PowerManager power = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
-            PowerManager.WakeLock wakeLock = power.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, TAG);
-            wakeLock.setReferenceCounted(false);
-            wakeLock.acquire();
-            Log.info("wake lock held");
-        } catch (RuntimeException e) {
-            Log.error("no wake lock", e);
-        }
-    }
+	void acquire() {
+		if (held) {
+			return;
+		}
+		held = true;
+		try {
+			PowerManager power = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
+			PowerManager.WakeLock wakeLock = power.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, TAG);
+			wakeLock.setReferenceCounted(false);
+			wakeLock.acquire();
+			Log.info("wake lock held");
+		} catch (RuntimeException e) {
+			Log.error("no wake lock", e);
+		}
+	}
 }

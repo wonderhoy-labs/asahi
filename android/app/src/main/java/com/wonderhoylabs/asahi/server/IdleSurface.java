@@ -18,26 +18,26 @@ import androidx.annotation.RequiresApi;
 @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
 final class IdleSurface {
 
-    private static final int WIDTH = 16;
-    private static final int HEIGHT = 9;
-    private static final int MAX_IMAGES = 2;
+	private static final int WIDTH = 16;
+	private static final int HEIGHT = 9;
+	private static final int MAX_IMAGES = 2;
 
-    private final ImageReader reader;
+	private final ImageReader reader;
 
-    IdleSurface() {
-        HandlerThread thread = new HandlerThread("idle-surface");
-        thread.setDaemon(true);
-        thread.start();
-        reader = ImageReader.newInstance(WIDTH, HEIGHT, PixelFormat.RGBA_8888, MAX_IMAGES);
-        reader.setOnImageAvailableListener(source -> {
-            Image image = source.acquireLatestImage();
-            if (image != null) {
-                image.close();
-            }
-        }, new Handler(thread.getLooper()));
-    }
+	IdleSurface() {
+		HandlerThread thread = new HandlerThread("idle-surface");
+		thread.setDaemon(true);
+		thread.start();
+		reader = ImageReader.newInstance(WIDTH, HEIGHT, PixelFormat.RGBA_8888, MAX_IMAGES);
+		reader.setOnImageAvailableListener(source -> {
+			Image image = source.acquireLatestImage();
+			if (image != null) {
+				image.close();
+			}
+		}, new Handler(thread.getLooper()));
+	}
 
-    Surface surface() {
-        return reader.getSurface();
-    }
+	Surface surface() {
+		return reader.getSurface();
+	}
 }
