@@ -18,8 +18,9 @@ does goes down the cable and out through a [Wisp](https://github.com/MercuryWork
 phone's Wi-Fi and mobile data turned off.
 
 There's no root on the phone, and no `adb`, drivers or anything else on the computer. It's
-[Shira](https://github.com/wonderhoy-labs/shira) and [Shinonome](https://github.com/wonderhoy-labs/shinonome) in one app and one
-page.
+[Shira](https://github.com/wonderhoy-labs/shira) and [Shinonome](https://github.com/wonderhoy-labs/shinonome) in one page, built
+on their libraries: Shira's app gives the phone its network, and Shinonome's server, which runs without installing anything,
+gives it its desktop.
 
 ![Asahi in Chrome, showing a Pixel's desktop with two windows open](docs/screenshot.webp)
 
@@ -48,12 +49,13 @@ something.
    computer** and tap **Allow**. A browser you've allowed before carries on by itself.
 3. **Pick a Wisp server,** like `wss://example.com/wisp/`. The page connects to it once to check, and asks for a login if the
    server wants one. It remembers the last few you used.
-4. **Install the app.** The page shows whether it's there and which version. **Install it for me** does it through USB
-   debugging, **I'll install it myself** gives you the APK and notices when it's on the phone, and **Check again** looks again.
-   If the app's already current, **Continue** carries on. You can also get it from
-   [Releases](https://github.com/wonderhoy-labs/asahi/releases).
-5. **Launch.** This turns on the network, connects it to your server, starts the desktop and opens it. The page gives the app
-   Android's VPN permission through USB debugging, the same as tapping OK on the phone's own dialog.
+4. **Install the app.** Asahi's app on the phone is [Shira](https://github.com/wonderhoy-labs/shira), and the page carries it.
+   The page shows whether it's there and which version. **Install it for me** does it through USB debugging, **I'll install it
+   myself** gives you the APK and notices when it's on the phone, and **Check again** looks again. If it's already current,
+   **Continue** carries on. You can also get it from [Shira's releases](https://github.com/wonderhoy-labs/shira/releases). The
+   desktop needs nothing installed.
+5. **Launch.** This turns on the network, connects it to your server, starts the desktop and opens it. Shira gets Android's VPN
+   permission through USB debugging, the same as tapping OK on the phone's own dialog.
 
 Then you're in. The bar at the top shows the desktop's frame rate and delay, and the network's speed. Click the network to see
 every connection your phone makes. **Fullscreen** gives the desktop the whole screen, and you hold Esc to leave.
@@ -99,6 +101,37 @@ the whole log as JSON.
 
 The log only exists in that tab. It's never sent anywhere, and it's gone when you close it.
 
+## Use it in your app
+
+Asahi is two libraries in one page, and you can put them together the same way in yours:
+[`@wonderhoy-labs/shira`](https://github.com/wonderhoy-labs/shira#use-it-in-your-app) for the network and
+[`@wonderhoy-labs/shinonome`](https://github.com/wonderhoy-labs/shinonome#use-it-in-your-app) for the desktop. Each carries its
+own APK, and both work over one `adb` connection from [Tango](https://github.com/yume-chan/ya-webadb):
+
+```ts
+import { DesktopSession, Phone as DesktopPhone, runDesktopLink } from "@wonderhoy-labs/shinonome";
+import shinonomeApk from "@wonderhoy-labs/shinonome/shinonome.apk?url";
+import { LogStore, Phone as NetworkPhone, ShiraLink } from "@wonderhoy-labs/shira";
+
+const bytes = async (url: string) => new Uint8Array(await (await fetch(url)).arrayBuffer());
+
+const network = new ShiraLink({
+	phone: new NetworkPhone(adb, "My phone", "usb"),
+	serverUrl: "wss://wisp.example/",
+	credentials: null,
+	log: new LogStore(),
+	events: {},
+});
+network.start("auto");
+
+const desktop = new DesktopPhone(adb, "My phone");
+if (!(await desktop.isServerRunning())) await desktop.startServer(await bytes(shinonomeApk));
+await runDesktopLink(await desktop.openDesktopSocket(), new DesktopSession(canvas, {}));
+```
+
+Asahi's own [`controller.ts`](web/src/asahi/controller.ts) is the whole of it, with the onboarding, reconnecting after a replug,
+and ending a session. Add the wisp-js fork next to Shira's library, as its README says.
+
 ## Wisp servers
 
 A Wisp server turns a WebSocket into TCP and UDP connections. All your phone's traffic goes through it, so use one you run
@@ -126,8 +159,21 @@ enter it again after a reload. Key-based logins aren't supported.
 
 Everything here is on a Pixel 10 Pro running Android 17 (build `CP3A.260905.009`, not rooted), with a Mac.
 
-**The whole page, in Chrome 156 and through the development server's link to `adb`.** That's the real page and the real app,
-reaching the phone through the `adb` server on the Mac instead of WebUSB:
+**Asahi 0.2.0, on Shira's and Shinonome's libraries, in Chrome through the development server's link to `adb`.** The real
+page, with Shira 0.2.0 and Shinonome 0.3.2 from their releases:
+
+- **Update it for me** took the phone's Shira from 0.1.0 to the 0.2.0 the page carries, in place.
+- **Launch** brought up Shira's VPN and started Shinonome's server from the APK the page carries, without installing it, and
+  the desktop showed its picture. Dragging a window ran at 68 to 72 frames per second, 17 to 18 ms from capture to decoded
+  at the median and 31 to 32 ms at the 95th percentile.
+- **Sound** came on with a click on the desktop, while a test window on it played a tone: 110 packets in a row with no
+  stalls or underruns, 12.5 ms from capture to arrival at the median and 16 ms at the 95th percentile, and about 38 ms of
+  output delay in the browser on top.
+- **End session** turned the VPN off and stopped the server, and with `--screen-on` the phone stayed unlocked.
+
+**Asahi 0.1.0, which had its own app.** That app was Shira's and Shinonome's code under Asahi's name, and the page was the same
+steps on copies of their code, so these still describe what the libraries do. In Chrome 156, through the development server's
+link to `adb`:
 
 - Connecting, finding no app, **Install it for me** with the release APK, then finding it installed on the next visit.
 - Checking a Wisp server, and **Launch**: the VPN came up, the desktop started, and the page showed it at 90 to 119 frames per
@@ -146,11 +192,6 @@ reaching the phone through the `adb` server on the Mac instead of WebUSB:
 Allow the desktop started, took a new shape and streamed with no dropped frames, while a 256 MiB download ran on the same
 connection at 137 Mbit/s. Stopping it ended the server.
 
-**Sound, clipboard and dropped files.** Asahi's desktop server, run from a debug build, was checked over `adb forward` with a
-beeping test window: sound started and stopped on request, arriving 12 ms after capture, and pasted text came back after a copy
-on the phone. The page's side of these is Shinonome's code, which was checked in Chrome, including a real `Cmd+V` and a dropped
-file. Asahi's own page hasn't run them yet, because launching it would also have taken over the test phone's network.
-
 **On an Android 17 emulator,** the network came up and the page explained that the emulator can't make a desktop, with the
 network still working. The app's own screen was checked there in light and dark.
 
@@ -165,10 +206,10 @@ Windows, Linux and Edge.
                  apps on the phone                       the desktop
                         │ IP packets                          │ Android's own desktop mode
                         ▼                                     ▼
-   Asahi app: VPN, with TCP, UDP and DNS ending here     virtual display ── H.264 encoder
-                        │ Wisp packets                        │ (desktop server, shell user)
+   Shira's app: VPN, with TCP, UDP and DNS ending here   virtual display ── H.264 encoder
+                        │ Wisp packets                        │ (Shinonome's server, shell user)
                         ▼                                     ▼
-           localabstract:asahi                    localabstract:asahi-desktop
+           localabstract:shira                     localabstract:shinonome
                         └────────────── adb over USB ─────────┘
                                           │
                                the page, over WebUSB
@@ -179,13 +220,15 @@ Windows, Linux and Edge.
 ```
 
 The page speaks `adb` over WebUSB with [Tango](https://github.com/yume-chan/ya-webadb), the library behind WebADB. One `adb`
-connection carries everything: a socket to the app for the network, a socket to the desktop server, and the shell commands that
-install and start things. Both sockets are described in [docs/protocol.md](docs/protocol.md).
+connection carries everything: a socket to Shira's app for the network, a socket to Shinonome's desktop server, and the shell
+commands that install and start things. Each socket is its project's, and described there:
+[Shira's](https://github.com/wonderhoy-labs/shira/blob/main/docs/protocol.md) and
+[Shinonome's](https://github.com/wonderhoy-labs/shinonome/blob/main/docs/protocol.md).
 
 ### The network
 
-This is Shira. Normal apps can't use a phone's USB port as a network, but they can be a VPN, which receives every packet the
-phone sends. Asahi's app does that and ends the connections right there, in a small TCP stack written in Kotlin that acts as the
+This is Shira, through its library and its app. Normal apps can't use a phone's USB port as a network, but they can be a VPN,
+which receives every packet the phone sends. Shira's app does that and ends the connections right there, in a small TCP stack written in Kotlin that acts as the
 other end of every connection and turns each one into a Wisp stream. The page hands those to
 [wisp-js](https://github.com/MercuryWorkshop/wisp-js), which keeps the connection to your server.
 
@@ -198,12 +241,13 @@ The VPN is IPv4 only.
 
 ### The desktop
 
-This is Shinonome. Android decides whether a display gets the desktop by how the display was created, not by whether there's a
+This is Shinonome, through its library and its server. Android decides whether a display gets the desktop by how the display was created, not by whether there's a
 real monitor. A virtual display with the `TRUSTED` and `ALLOWS_CONTENT_MODE_SWITCH` flags gets the taskbar, title bars and window
 management like a monitor you just plugged in. Asahi doesn't reimplement any of that.
 
-Normal apps can't create a trusted display, but the shell user that `adb` runs as can. So the APK also contains a small server,
-and the page starts it with `app_process` through `adb`, using the app's start script. The server creates the display, encodes it
+Normal apps can't create a trusted display, but the shell user that `adb` runs as can. So the page carries Shinonome's APK,
+copies it to the phone without installing it, and starts the server inside it with `app_process` through `adb`, using
+Shinonome's start script. The server creates the display, encodes it
 with the phone's H.264 encoder at low-latency settings, and injects your input into it. The page decodes with WebCodecs and draws
 to a canvas. The encoder is asked to run at up to 480 frames a second, which finishes each frame in about 9 ms instead of 18,
 and pointer moves go out at most every 4 ms in as few USB transfers as possible. Over WebUSB that comes to about 12 ms from
@@ -234,12 +278,12 @@ trade-off for only unlocking once. It ends when you end the session, close the t
 including your DNS questions. HTTPS is still HTTPS. Asahi adds no encryption of its own past the `wss://` to the server, and a
 `ws://` address has none at all. 1.1.1.1 sees your DNS questions too.
 
-**Other apps on the phone are kept out.** The app's socket and the desktop server's socket both refuse connections from anything
-but `adbd`. Any app could listen on those names first, so the page only connects once it has
-checked that Asahi's own service, or its own server, holds them. Only `adb` can open the screen that turns the network on.
+**Other apps on the phone are kept out.** Shira's socket and the desktop server's socket both refuse connections from anything
+but `adbd`. Any app could listen on those names first, so the page only connects once it has checked that Shira's own service,
+or Shinonome's server, holds them. Only `adb` can open the screen that turns the network on.
 
-**Launching gives the app the VPN approval,** the same as the phone's dialog would. It stays until you uninstall the app, like
-any VPN's. It also grants the notification permission, so that you can see it's running. Asahi replaces any other VPN while
+**Launching gives Shira the VPN approval,** the same as the phone's dialog would. It stays until you uninstall Shira, like
+any VPN's. It also grants the notification permission, so that you can see it's running. Shira replaces any other VPN while
 it's on, and that one doesn't come back by itself.
 
 ## Troubleshooting
@@ -255,9 +299,12 @@ Android Studio, and run `adb kill-server`, because other tools can start `adb` a
 **"Your phone can't make a desktop".** Your Android build doesn't extend the desktop to virtual displays. Try turning on **Enable
 desktop experience features** in Developer options and rebooting. The network works either way.
 
-**The app won't install.** Play Protect may ask about it, because it's not from the Play Store. The page tells you Android's
-reason if it's anything else. **"Signed with a different key"** means you have a copy from somewhere else, like your own build.
-Remove it with the button on the page.
+**Shira won't install.** Play Protect may ask about it, because it's not from the Play Store. The page tells you Android's
+reason if it's anything else. **"Signed with a different key"** means you have a copy of Shira from somewhere else, like your
+own build. Remove it with the button on the page.
+
+**You still have the Asahi app.** Asahi 0.1.0 had an app of its own. From 0.2.0 Asahi uses Shira's app and Shinonome's server
+instead, so you can uninstall the old one.
 
 **Launch stays on "Turn on the network".** Unlock the phone, because a locked phone can't open the app. If it's asking about a VPN
 connection, tap **OK**. If another app is set as an always-on VPN, turn that off in Settings, under Network & internet, then VPN.
@@ -266,8 +313,9 @@ connection, tap **OK**. If another app is set as an always-on VPN, turn that off
 address or port, and the [server's needs](#wisp-servers) above are a good place to start. If DNS rows fail, it can't reach
 `1.1.1.1:53`.
 
-**Windows have no title bars and you can't drag them.** Another virtual desktop is running, like Shinonome's on the phone itself.
-Asahi ends Shinonome's computer sessions when it starts, but not the desktop in Shinonome's app. Close that and launch again.
+**Windows have no title bars and you can't drag them.** Another virtual desktop is running, like the one in Shinonome's app on the
+phone itself. Asahi runs Shinonome's own server, so starting it ends a Shinonome session from a computer, and closes the desktop
+in Shinonome's app when it can. If that didn't happen, close it there and launch again.
 
 If you're reporting a bug, please include your phone model, Android build number, browser version and which Wisp server software
 you're using. The JSON you can save from the log can help, but look through it first, because it lists everywhere your phone
@@ -289,10 +337,10 @@ connected.
 
 ## Development
 
-You need Node 24 or newer with pnpm, JDK 17 or newer, and the Android SDK with platform 37. On Windows, use `gradlew.bat`.
+You need Node 24 or newer with pnpm. There's no Android project: the phone's side comes with the two libraries.
 
 Asahi follows the [Wonderhoy Labs guideline](.claude/skills/wonderhoy-unification/SKILL.md), like every Wonderhoy Labs project.
-The shared tools need Node 24 or newer and pnpm. Format before you commit, and check the result:
+Format before you commit, and check the result:
 
 ```bash
 pnpm install && pnpm format && pnpm unify
@@ -300,26 +348,15 @@ pnpm install && pnpm format && pnpm unify
 
 | Where | What's in it |
 | --- | --- |
-| `android/app/src/main/kotlin/com/wonderhoylabs/asahi/tunnel/` | The TCP, UDP and DNS side of the network, with nothing Android-specific so that it can be tested on its own |
-| `android/app/src/main/kotlin/com/wonderhoylabs/asahi/bridge/` | The messages on the network socket |
-| `android/app/src/main/kotlin/com/wonderhoylabs/asahi/vpn/` | The VPN service, and the thread that moves everything |
-| `android/app/src/main/kotlin/com/wonderhoylabs/asahi/ui/` | The app's screen |
-| `android/app/src/main/java/com/wonderhoylabs/asahi/server/` | The desktop server: display, encoder, input and the desktop socket |
-| `android/app/src/main/assets/start.sh` | Starts the desktop server as the shell user. The page carries the same file |
-| `web/src/asahi/controller.ts` | Everything the page does, step by step |
-| `web/src/adb/` | Reaching the phone, and what's done on it |
-| `web/src/link/`, `web/src/wisp/`, `web/src/log/` | The network: its socket, the Wisp connection and the log |
-| `web/src/desktop/` | The desktop: video, input and its socket |
+| `web/src/asahi/controller.ts` | Everything the page does, step by step, on Shira's and Shinonome's libraries |
+| `web/src/adb/` | Reaching the phone over WebUSB or the development `adb` server, as one `Phone` with a network side and a desktop side |
 | `web/src/ui/` | The page's screens, in React with [mdui](https://github.com/zdhxiong/mdui) for Material 3 |
-| `web/plugins/` | The Vite plugin: the APK, and the development servers |
-| `VERSION` | The version, for both the app and the page |
+| `web/plugins/` | The Vite plugin: the version of Shira the page carries, the notices, and the development servers |
+| `VERSION` | Asahi's version |
 | `tools/` | The shared Wonderhoy Labs tools: `theme.ts` makes the colours, `unify.ts` checks the guideline |
 
-Build the app, then start the page:
-
-```bash
-cd android && ./gradlew :app:assembleDebug
-```
+The libraries come from their releases, by the addresses in `web/package.json`. To move to a new version of either, change its
+address there and run `pnpm install`. The page carries the APKs inside them.
 
 ```bash
 pnpm install && cd web && pnpm dev
@@ -330,7 +367,6 @@ The development server does a few things production gets from elsewhere:
 - **It runs a Wisp server** at `/wisp/` on the same port, and the page starts with that address filled in. It can reach this
   computer's own services too, so it only takes connections from this page. To try logins, set
   `ASAHI_DEV_WISP_AUTH=user:password` before you start it.
-- **It serves the debug APK.** Set `ASAHI_APK` to a path to serve another.
 - **It can reach `adb`.** The page also lists whatever your `adb` server can see, which is how to use an emulator, or a phone
   without stopping `adb`. An emulator can test everything but the desktop, which it refuses because it has no desktop windows.
 
@@ -341,52 +377,14 @@ console. Anything in it is passed to the desktop server, and production builds i
 localStorage.setItem('asahi.dev.desktop-args', '--screen-on')
 ```
 
-A production build needs a release APK, because the site carries it. Preview serves that build with the same Wisp server, at
-`ws://localhost:4173/wisp/`.
+Preview serves a production build with the same Wisp server, at `ws://localhost:4173/wisp/`.
 
 ```bash
-cd android && ./gradlew :app:assembleRelease
+cd web && pnpm test && pnpm build && pnpm preview
 ```
 
-```bash
-cd web && pnpm build && pnpm preview
-```
-
-Tests:
-
-```bash
-cd android && ./gradlew :app:testDebugUnitTest
-```
-
-```bash
-cd web && pnpm test
-```
-
-`ScreenTest` draws every state of the app's screen and saves pictures. Run it on an emulator with `am instrument`, because Gradle's
-connected task uninstalls the app, and its pictures with it:
-
-```bash
-cd android && ./gradlew :app:assembleDebug :app:assembleDebugAndroidTest
-```
-
-```bash
-adb install -r app/build/outputs/apk/debug/app-debug.apk && adb install -r -t app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
-```
-
-```bash
-adb shell am instrument -w com.wonderhoylabs.asahi.test/androidx.test.runner.AndroidJUnitRunner
-```
-
-The pictures end up in `/sdcard/Android/data/com.wonderhoylabs.asahi/files/screens/`.
-
-Release APKs are signed with your debug key unless you set `ASAHI_KEYSTORE`, `ASAHI_KEYSTORE_PASSWORD`, `ASAHI_KEY_ALIAS` and
-`ASAHI_KEY_PASSWORD`.
-
-Pushing to `main` builds everything through [ci.yml](.github/workflows/ci.yml) and publishes the site to GitHub Pages, whose source
-has to be GitHub Actions. Pushing a tag like `v0.1.0`, matching `VERSION`, builds everything and publishes a GitHub release through
-[ci.yml](.github/workflows/ci.yml). It signs the APK with the repository's `ASAHI_KEYSTORE_BASE64`, `ASAHI_KEYSTORE_PASSWORD`,
-`ASAHI_KEY_ALIAS` and `ASAHI_KEY_PASSWORD` secrets. Without them, each release gets a throwaway key and has to be installed
-fresh instead of updating.
+Pushing to `main` builds the page through [ci.yml](.github/workflows/ci.yml) and publishes it to GitHub Pages, whose source has
+to be GitHub Actions. Pushing a tag like `v0.2.0`, matching `VERSION`, publishes a GitHub release with its notes.
 
 ## License and credits
 
@@ -395,19 +393,20 @@ affiliated with Google. Android and Pixel are trademarks of Google LLC.
 
 It stands on the work of these projects:
 
+- [Shira](https://github.com/wonderhoy-labs/shira) and [Shinonome](https://github.com/wonderhoy-labs/shinonome), Wonderhoy Labs'
+  own, whose libraries and apps are Asahi's network and desktop
+
 - [wisp-js](https://github.com/MercuryWorkshop/wisp-js) and the [Wisp protocol](https://github.com/MercuryWorkshop/wisp-protocol), by
   Mercury Workshop. wisp-js is under the GNU LGPL 3.0 or later. The page and its development server use
   [our fork](https://github.com/wonderhoy-labs/wisp-js/tree/fixes), which is upstream with two fixes. To use another version, change
   it in `web/package.json` and rebuild.
 - [Tango](https://github.com/yume-chan/ya-webadb) (MIT), by Simon Chan, for `adb` over WebUSB
-- [scrcpy](https://github.com/Genymobile/scrcpy). The process setup in
-  `android/app/src/main/java/com/wonderhoylabs/asahi/server/Hidden.java` is adapted from its `Workarounds` and `FakeContext` classes,
+- [scrcpy](https://github.com/Genymobile/scrcpy), whose `Workarounds` and `FakeContext` classes Shinonome's desktop server adapts,
   under the Apache License 2.0. Copyright (C) 2018 Genymobile, Copyright (C) 2018-2026 Romain Vimont.
 - [mdui](https://github.com/zdhxiong/mdui) (MIT), for the page's Material 3 components, and
   [Material Color Utilities](https://github.com/material-foundation/material-color-utilities) (Apache 2.0), which made its colours
 - [React](https://github.com/facebook/react) (MIT) and [TanStack Virtual](https://github.com/TanStack/virtual) (MIT)
 - [Roboto Flex](https://github.com/googlefonts/roboto-flex) (OFL 1.1), through [Fontsource](https://github.com/fontsource/fontsource)
-- [Jetpack Compose and AndroidX](https://developer.android.com/jetpack) (Apache 2.0), for the Android app
 
 The site publishes everything it bundles, with license texts, as `third-party-licenses.txt`.
 

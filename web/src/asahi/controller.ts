@@ -1,23 +1,29 @@
-import type { AdbSocket } from "@yume-chan/adb";
-import type { AdbDaemonWebUsbDevice } from "@yume-chan/adb-daemon-webusb";
-import startScript from "../../../android/app/src/main/assets/start.sh?raw";
-import { type AppInfo, InstallError, type Phone, type PhoneKind, serverIncompatibility } from "../adb/phone";
-import { authorizeUsb, claimUsb, knownPhone, pickPhone, UsbBusyError, type UsbConnection } from "../adb/usb";
-import { exposeDebugApi } from "../desktop/debug";
-import { DesktopSession, type SessionStats, type SoundState } from "../desktop/desktop-session";
-import { batchedWriter, FrameReader } from "../desktop/frames";
-import type { DesktopStatus } from "../desktop/protocol";
-import { CLOSE_NETWORK_ERROR, LinkStatus, MetaKind, StreamType } from "../link/frames";
-import { ProtocolMismatchError, Relay, type RelayEvents } from "../link/relay";
-import { LogStore } from "../log/store";
 import {
+	DesktopSession,
+	type DesktopStatus,
+	exposeDebugApi,
+	runDesktopLink,
+	type SessionStats,
+	type SoundState,
+} from "@wonderhoy-labs/shinonome";
+import shinonomeApkUrl from "@wonderhoy-labs/shinonome/shinonome.apk?url";
+import {
+	type AppInfo,
 	connectWisp,
+	InstallError,
+	type LinkState,
+	LogStore,
 	normalizeServerUrl,
-	type WispConnection,
+	ShiraLink,
+	type StopReason,
 	type WispCredentials,
 	WispError,
-} from "../wisp/connection";
-import { APK_PATH } from "./constants";
+} from "@wonderhoy-labs/shira";
+import shiraApkUrl from "@wonderhoy-labs/shira/shira.apk?url";
+import type { AdbSocket } from "@yume-chan/adb";
+import type { AdbDaemonWebUsbDevice } from "@yume-chan/adb-daemon-webusb";
+import type { Phone, PhoneKind } from "../adb/phone";
+import { authorizeUsb, claimUsb, knownPhone, pickPhone, UsbBusyError, type UsbConnection } from "../adb/usb";
 
 /** The onboarding, in order, and then the session itself. */
 export type Step = "usb" | "authorize" | "server" | "app" | "launch" | "live";
@@ -45,7 +51,7 @@ export interface AsahiState {
 	recentServers: string[];
 
 	app: AppInfo | null;
-	/** True if the app's version is what this site carries, or newer. */
+	/** True if the version of Shira's app on the phone is what this site carries, or newer. */
 	appCurrent: boolean;
 	checkingApp: boolean;
 	installing: boolean;
@@ -95,10 +101,6 @@ const MAX_RECENT_SERVERS = 4;
 
 const POLL_MILLIS = 1_000;
 const TRANSFER_NOTE_MILLIS = 4_000;
-const FIRST_RETRY_MILLIS = 1_000;
-const MAX_RETRY_MILLIS = 15_000;
-const SLOW_ACTIVATE_MILLIS = 10_000;
-const PACKAGE_REFRESH_MILLIS = 10_000;
 const RECONNECT_MILLIS = 1_000;
 // Unplugging ends a link too, and that's handled when adb notices, a moment later.
 const LINK_SETTLE_MILLIS = 300;
@@ -153,6 +155,40 @@ function message(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
 }
 
+/** What the page calls each of the link's states. */
+const NETWORK_STATES: Record<LinkState, NetworkState> = {
+	idle: "off",
+	"waiting-for-app": "starting",
+	connecting: "connecting",
+	live: "up",
+	"server-lost": "server-lost",
+};
+
+/** The network stopped by itself, before or after it was first up. */
+class NetworkStopped extends Error {
+	constructor(readonly reason: StopReason) {
+		super(
+			reason.kind === "off"
+				? "The network stopped on your phone."
+				: reason.kind === "replaced"
+					? "Another page took over your phone's network."
+					: reason.message,
+		);
+		this.name = "NetworkStopped";
+	}
+}
+
+/** The reason a desktop server gave for not starting, if it gave one. */
+function serverIncompatibility(log: string): string | null {
+	return /^incompatible: (.*)$/m.exec(log)?.[1]?.trim() ?? null;
+}
+
+async function fetchBytes(url: string): Promise<Uint8Array<ArrayBuffer>> {
+	const response = await fetch(url);
+	if (!response.ok) throw new Error(`This site is missing ${url}.`);
+	return new Uint8Array(await response.arrayBuffer());
+}
+
 /** Everything the page does, step by step. The screens only show this and call its methods. */
 export class Controller {
 	readonly log = new LogStore();
@@ -200,20 +236,15 @@ export class Controller {
 	/** The device being authorized, so that waiting for the phone's OK can be called off. */
 	private pendingDevice: AdbDaemonWebUsbDevice | null = null;
 	private usingUsb = false;
-	private apk: Uint8Array<ArrayBuffer> | null = null;
+	private shiraApk: Uint8Array<ArrayBuffer> | null = null;
+	private shinonomeApk: Uint8Array<ArrayBuffer> | null = null;
 	/** Bumped to cancel whatever setup job is going on. Each one checks it's still current. */
 	private job = 0;
 
-	// The network
-	private relay: Relay | null = null;
-	private wisp: WispConnection | null = null;
+	// The network, through Shira's app
+	private link: ShiraLink | null = null;
 	private serverUrl: string | null = null;
 	private credentials: WispCredentials | null = null;
-	private networkJob = 0;
-	private lastPackageRefresh = 0;
-	private statusWaiter: ((up: { ok: true } | { ok: false; message: string }) => void) | null = null;
-	/** Why the app said it was closing the socket, as opposed to the socket just going away. */
-	private goodbye: "off" | "replaced" | null = null;
 
 	// The desktop
 	private session: DesktopSession | null = null;
@@ -230,6 +261,7 @@ export class Controller {
 		exposeDebugApi(
 			() => this.session,
 			import.meta.env.DEV ? (command) => this.requirePhone().shell(command) : undefined,
+			"asahi",
 		);
 	}
 
@@ -353,7 +385,12 @@ export class Controller {
 		const lost = () => this.onPhoneLost(phone);
 		phone.disconnected.then(lost, lost);
 		this.update({ phone: phone.name, phoneKind: phone.kind, busy: null, error: null });
-		void this.refreshPackages(true);
+		void phone.network.packagesByUid().then(
+			(packages) => {
+				this.log.packages = packages;
+			},
+			(error: unknown) => console.warn("couldn't list the phone's packages", error),
+		);
 		try {
 			await this.refreshApp();
 		} catch (error) {
@@ -373,7 +410,7 @@ export class Controller {
 		if (this.state.network === "phone-lost" && this.state.appCurrent)
 			void this.runNetwork(true).catch(() => undefined);
 		if (this.state.desktop === "phone-lost") {
-			if (await phone.isDesktopRunning()) {
+			if (await phone.desktop.isServerRunning()) {
 				this.update({ desktop: "connecting" });
 				void this.openDesktopLink();
 			} else {
@@ -386,12 +423,9 @@ export class Controller {
 		if (this.phone !== phone) return;
 		this.phone = null;
 		this.job++;
-		this.statusWaiter?.({ ok: false, message: "The phone was disconnected." });
-		this.statusWaiter = null;
 		if (this.state.step === "live") {
-			this.networkJob++;
 			this.desktopJob++;
-			this.stopRelay();
+			this.stopNetwork();
 			this.desktopSocket = null;
 			this.session?.detach();
 			const desktopWasOn = ["up", "connecting", "starting"].includes(this.state.desktop);
@@ -403,8 +437,7 @@ export class Controller {
 			});
 			return;
 		}
-		this.networkJob++;
-		this.stopRelay();
+		this.stopNetwork();
 		this.update({
 			step: "usb",
 			phone: null,
@@ -497,11 +530,11 @@ export class Controller {
 	// Step 4: the app. Nothing's installed unless someone asks.
 
 	private appIsCurrent(app: AppInfo) {
-		return app.installed && (app.versionCode ?? 0) >= __ASAHI_VERSION_CODE__;
+		return app.installed && (app.versionCode ?? 0) >= __SHIRA_VERSION_CODE__;
 	}
 
 	private async refreshApp(): Promise<AppInfo> {
-		const app = await this.requirePhone().appInfo();
+		const app = await this.requirePhone().network.appInfo();
 		this.update({ app, appCurrent: this.appIsCurrent(app) });
 		return app;
 	}
@@ -518,13 +551,16 @@ export class Controller {
 		}
 	}
 
-	private async fetchApk(): Promise<Uint8Array<ArrayBuffer>> {
-		if (!this.apk) {
-			const response = await fetch(APK_PATH);
-			if (!response.ok) throw new Error(`This site is missing ${APK_PATH}.`);
-			this.apk = new Uint8Array(await response.arrayBuffer());
-		}
-		return this.apk;
+	/** Shira's app, which this site carries. */
+	private async fetchShiraApk(): Promise<Uint8Array<ArrayBuffer>> {
+		this.shiraApk ??= await fetchBytes(shiraApkUrl);
+		return this.shiraApk;
+	}
+
+	/** Shinonome's app, which holds the desktop server. It runs from a copy, so it isn't installed. */
+	private async fetchShinonomeApk(): Promise<Uint8Array<ArrayBuffer>> {
+		this.shinonomeApk ??= await fetchBytes(shinonomeApkUrl);
+		return this.shinonomeApk;
 	}
 
 	async installApp() {
@@ -538,7 +574,7 @@ export class Controller {
 			notice: null,
 		});
 		try {
-			await this.requirePhone().install(await this.fetchApk(), (installProgress) =>
+			await this.requirePhone().network.install(await this.fetchShiraApk(), (installProgress) =>
 				this.update({ installProgress }),
 			);
 			await this.refreshApp();
@@ -549,7 +585,7 @@ export class Controller {
 				installing: false,
 				offerUninstall: uninstall,
 				error: uninstall
-					? "The copy of Asahi on your phone was signed with a different key, or is newer, so Android won't replace it. Remove it to carry on."
+					? "The copy of Shira on your phone was signed with a different key, or is newer, so Android won't replace it. Remove it to carry on."
 					: `Couldn't install the app: ${message(error)}`,
 			});
 		}
@@ -557,7 +593,7 @@ export class Controller {
 
 	async uninstallAndInstall() {
 		try {
-			await this.requirePhone().uninstall();
+			await this.requirePhone().network.uninstall();
 			await this.installApp();
 		} catch (error) {
 			this.update({ error: `Couldn't remove the old app: ${message(error)}` });
@@ -607,9 +643,8 @@ export class Controller {
 			this.update({ launchStage: null, busy: null, step: "live" });
 		} catch (error) {
 			if (job !== this.job) return;
-			this.networkJob++;
-			this.stopRelay();
-			if (error instanceof ProtocolMismatchError) {
+			this.stopNetwork();
+			if (error instanceof NetworkStopped && error.reason.kind === "app-mismatch") {
 				this.update({
 					launchStage: null,
 					network: "off",
@@ -626,214 +661,60 @@ export class Controller {
 
 	cancelLaunch() {
 		this.job++;
-		this.networkJob++;
-		this.statusWaiter?.({ ok: false, message: "Cancelled." });
-		this.statusWaiter = null;
-		this.stopRelay();
+		this.stopNetwork();
 		this.update({ launchStage: null, network: "off", busy: null });
 	}
 
 	// The network
 
 	/**
-	 * Gets from here to connected, and resolves the first time the VPN's up. It carries on in the background
-	 * after that, through a lost server. [startApp] is false when going back to an app that's already running,
-	 * because anything else would turn Asahi back on after someone turned it off.
+	 * Gets from here to connected through Shira's app, and resolves the first time the VPN's up. It carries on in the
+	 * background after that, through a lost server. [startApp] is false when going back to an app that's already
+	 * running, because anything else would turn the network back on after someone turned it off.
 	 */
 	private runNetwork(startApp: boolean): Promise<void> {
-		const job = ++this.networkJob;
-		const isCurrent = () => this.networkJob === job;
+		this.stopNetwork();
+		const phone = this.requirePhone();
+		const serverUrl = this.serverUrl;
+		if (!serverUrl) return Promise.reject(new Error("Choose a Wisp server first."));
 		return new Promise<void>((resolve, reject) => {
 			let settled = false;
-			const up = () => {
-				if (!settled) {
-					settled = true;
-					resolve();
-				}
-			};
-			void (async () => {
-				try {
-					const phone = this.requirePhone();
-					this.update({ network: "starting" });
-					this.goodbye = null;
-					if (startApp) await phone.activateNetwork();
-					const relay = await this.waitForApp(phone, isCurrent);
-					if (!relay || !isCurrent()) return;
-					await this.keepConnected(relay, isCurrent, up);
-				} catch (error) {
-					if (!isCurrent()) return;
-					this.stopRelay();
-					if (settled) {
-						this.update({ network: "off", error: `The network stopped: ${message(error)}` });
-					} else {
-						settled = true;
-						reject(error);
-					}
-				}
-			})();
+			const link = new ShiraLink({
+				phone: phone.network,
+				serverUrl,
+				credentials: this.credentials,
+				log: this.log,
+				events: {
+					onState: (state) => {
+						if (this.link !== link) return;
+						this.update({ network: NETWORK_STATES[state] });
+						if (state === "live" && !settled) {
+							settled = true;
+							resolve();
+						}
+					},
+					onBusy: (busy) => {
+						if (this.link === link) this.update({ busy });
+					},
+					onHello: (appVersion) => this.update({ appVersion }),
+					onServer: ({ udp, wispVersion, message: serverMessage }) =>
+						this.update({ udp, wispVersion, serverMessage }),
+					onStopped: (reason) => {
+						if (this.link !== link) return;
+						this.link = null;
+						const stopped = new NetworkStopped(reason);
+						if (settled) {
+							this.update({ network: "off", error: `The network stopped: ${stopped.message}` });
+						} else {
+							settled = true;
+							reject(stopped);
+						}
+					},
+				},
+			});
+			this.link = link;
+			link.start(startApp ? "auto" : "manual");
 		});
-	}
-
-	/**
-	 * Waits for the app's service, and connects to its socket.
-	 *
-	 * Any app on the phone could listen on the socket's name, so this waits until Asahi's own service is
-	 * running first. The service stops if it can't get the name, so once it's running the name is its own.
-	 */
-	private async waitForApp(phone: Phone, isCurrent: () => boolean): Promise<Relay | null> {
-		const started = Date.now();
-		while (isCurrent()) {
-			if (Date.now() - started > SLOW_ACTIVATE_MILLIS) {
-				this.update({ busy: "Unlock your phone. If it's asking about a VPN connection, tap OK." });
-			}
-			if (await phone.isNetworkServiceRunning()) {
-				try {
-					const socket = await phone.openNetworkSocket();
-					const relay = new Relay(socket, this.relayEvents());
-					this.relay = relay;
-					const hello = await relay.greet();
-					this.update({ appVersion: hello.appVersion, busy: null });
-					return relay;
-				} catch (error) {
-					this.stopRelay();
-					if (error instanceof ProtocolMismatchError) throw error;
-					// The service is still setting up its socket.
-				}
-			}
-			await sleep(POLL_MILLIS);
-		}
-		return null;
-	}
-
-	/** Stays connected to the Wisp server until the phone goes or the page says stop. */
-	private async keepConnected(relay: Relay, isCurrent: () => boolean, onUp: () => void) {
-		const url = this.serverUrl;
-		if (!url) throw new Error("Choose a Wisp server first.");
-		let delay = FIRST_RETRY_MILLIS;
-		let everUp = false;
-
-		while (isCurrent() && this.relay === relay) {
-			this.update({ network: everUp ? "server-lost" : "connecting" });
-			let wisp: WispConnection;
-			try {
-				wisp = await connectWisp(url, this.credentials, relay.downloadGate);
-			} catch (error) {
-				const refused = error instanceof WispError && error.failure !== "unreachable";
-				// A login problem won't fix itself, and a server that never worked probably has the wrong address.
-				if (refused || !everUp) throw error;
-				await sleep(delay);
-				delay = Math.min(delay * 2, MAX_RETRY_MILLIS);
-				continue;
-			}
-			if (!isCurrent() || this.relay !== relay) {
-				wisp.close();
-				return;
-			}
-			this.wisp = wisp;
-			const lost = new Promise<void>((resolve) => {
-				wisp.onclose = () => resolve();
-				wisp.onerror = () => resolve();
-			});
-			this.update({
-				udp: wisp.udp_enabled,
-				wispVersion: wisp.wisp_version,
-				serverMessage: wisp.server_motd ?? null,
-			});
-
-			const status = new Promise<{ ok: true } | { ok: false; message: string }>((resolve) => {
-				this.statusWaiter = resolve;
-			});
-			relay.attach(wisp, new URL(url).host);
-			const result = await status;
-			if (!result.ok) {
-				wisp.onclose = () => undefined;
-				wisp.close();
-				throw new Error(result.message);
-			}
-			everUp = true;
-			delay = FIRST_RETRY_MILLIS;
-			this.update({ network: "up", busy: null });
-			onUp();
-
-			await lost;
-			if (!isCurrent() || this.relay !== relay) return;
-			this.wisp = null;
-			this.log.closeAll(CLOSE_NETWORK_ERROR, Date.now());
-			relay.detach();
-			this.update({ network: "server-lost" });
-			await sleep(delay);
-		}
-	}
-
-	private relayEvents(): RelayEvents {
-		return {
-			onStreamOpen: (stream, request) => {
-				const kind = request.streamType === StreamType.UDP ? "udp" : "tcp";
-				this.log.open(stream, kind, request.host, request.port, Date.now());
-			},
-			onStreamMeta: (stream, meta) => {
-				this.log.describe(
-					stream,
-					meta.kind === MetaKind.DNS ? "dns" : null,
-					meta.uid,
-					meta.name,
-					meta.queryType,
-				);
-				if (meta.uid >= 0 && !this.log.packages.has(meta.uid)) void this.refreshPackages(false);
-			},
-			onStreamData: (stream, up, down) => this.log.addBytes(stream, up, down),
-			onStreamClose: (stream, reason) => this.log.close(stream, reason, Date.now()),
-			onStatus: (code, statusMessage) => {
-				if (code === LinkStatus.UP) {
-					this.statusWaiter?.({ ok: true });
-					this.statusWaiter = null;
-				} else if (code === LinkStatus.FAILED) {
-					this.statusWaiter?.({
-						ok: false,
-						message: `Android wouldn't start the VPN. ${statusMessage}`.trim(),
-					});
-					this.statusWaiter = null;
-				} else if (code === LinkStatus.OFF) {
-					this.goodbye = "off";
-				} else if (code === LinkStatus.REPLACED) {
-					this.goodbye = "replaced";
-				}
-			},
-			onEnded: () => this.onRelayEnded(),
-		};
-	}
-
-	private onRelayEnded() {
-		// Only the relay that's in use matters. One that was let go on purpose has already been cleared.
-		if (!this.relay) return;
-		this.relay = null;
-		this.closeWisp();
-		this.log.closeAll(CLOSE_NETWORK_ERROR, Date.now());
-		// Unplugging ends this too, and that's handled when adb notices, a moment later.
-		if (!this.phone || this.state.network === "starting") return;
-		const standDown = (reason: string) => {
-			this.networkJob++;
-			this.statusWaiter?.({ ok: false, message: reason });
-			this.statusWaiter = null;
-			this.update({ network: "off", error: reason });
-		};
-		if (this.goodbye === "off") {
-			standDown("Asahi's network stopped on your phone.");
-			return;
-		}
-		if (this.goodbye === "replaced") {
-			standDown("Another page took over your phone's network.");
-			return;
-		}
-		void this.phone.isNetworkServiceRunning().then(
-			(running) => {
-				if (!this.phone) return;
-				// It dropped this connection for being silent, say, so connect again.
-				if (running) void this.runNetwork(false).catch((error: unknown) => standDown(message(error)));
-				else standDown("Asahi's network stopped on your phone.");
-			},
-			() => undefined,
-		);
 	}
 
 	/** Turns the network back on from the session, after it was turned off or failed. */
@@ -842,39 +723,16 @@ export class Controller {
 		try {
 			await this.runNetwork(true);
 		} catch (error) {
-			this.stopRelay();
+			this.stopNetwork();
 			this.update({ network: "off", busy: null, error: message(error) });
 		}
 	}
 
-	/** Lets go of the relay without counting it as the app going away. */
-	private stopRelay() {
-		const relay = this.relay;
-		this.relay = null;
-		relay?.close();
-		this.closeWisp();
-		this.log.closeAll(CLOSE_NETWORK_ERROR, Date.now());
-	}
-
-	private closeWisp() {
-		const wisp = this.wisp;
-		this.wisp = null;
-		if (!wisp) return;
-		wisp.onclose = () => undefined;
-		wisp.onerror = () => undefined;
-		wisp.close();
-	}
-
-	private async refreshPackages(force: boolean) {
-		const now = Date.now();
-		if (!force && now - this.lastPackageRefresh < PACKAGE_REFRESH_MILLIS) return;
-		this.lastPackageRefresh = now;
-		try {
-			const packages = await this.phone?.packagesByUid();
-			if (packages) this.log.packages = packages;
-		} catch (error) {
-			console.warn("couldn't list the phone's packages", error);
-		}
+	/** Lets go of the network link without turning Shira off on the phone. */
+	private stopNetwork() {
+		const link = this.link;
+		this.link = null;
+		link?.stop();
 	}
 
 	// The desktop
@@ -884,17 +742,17 @@ export class Controller {
 		this.update({ desktop: "starting", desktopProblem: null, desktopStatus: null, hasPicture: false });
 		try {
 			const phone = this.requirePhone();
-			if (await phone.isDesktopRunning()) {
+			if (await phone.desktop.isServerRunning()) {
 				this.update({ desktop: "connecting" });
 				return;
 			}
-			const output = await phone.startDesktop(startScript, devDesktopArgs());
+			const output = await phone.desktop.startServer(await this.fetchShinonomeApk(), devDesktopArgs());
 			const problem = serverIncompatibility(output);
 			if (problem) {
 				this.update({ desktop: "unavailable", desktopProblem: problem });
 				return;
 			}
-			if (!(await phone.isDesktopRunning())) {
+			if (!(await phone.desktop.isServerRunning())) {
 				throw new Error(`The desktop didn't start. The phone said:\n\n${output.trim().slice(-600)}`);
 			}
 			this.update({ desktop: "connecting" });
@@ -958,7 +816,7 @@ export class Controller {
 			this.update({ transfer: { name: file.name, percent: 0 } });
 			try {
 				saved.push(
-					await phone.saveToDownloads(file, (fraction) => {
+					await phone.desktop.saveToDownloads(file, (fraction) => {
 						const percent = Math.floor(fraction * 100);
 						if (percent !== this.state.transfer?.percent) {
 							this.update({ transfer: { name: file.name, percent } });
@@ -1003,7 +861,7 @@ export class Controller {
 		try {
 			await previous;
 			if (job !== this.desktopJob) return;
-			socket = await phone.openDesktopSocket();
+			socket = await phone.desktop.openDesktopSocket();
 		} catch (error) {
 			console.warn("couldn't open the desktop's socket", error);
 			if (job === this.desktopJob) void this.onDesktopLinkEnded(phone);
@@ -1016,27 +874,8 @@ export class Controller {
 			return;
 		}
 		this.desktopSocket = socket;
-		const writer = socket.writable.getWriter();
-		// A lost link shows up on the reading side, which reconnects.
-		session.attach(batchedWriter((bytes) => void writer.write(bytes).catch(() => undefined)));
-
-		const frames = new FrameReader();
-		const reader = socket.readable.getReader();
-		try {
-			while (true) {
-				const { value, done } = await reader.read();
-				if (done) break;
-				frames.push(value, (data) => {
-					if (job === this.desktopJob) session.receive(data);
-				});
-			}
-		} catch (error) {
-			console.info("the link to the desktop ended", error);
-		}
-		if (job === this.desktopJob) {
-			session.detach();
-			void this.onDesktopLinkEnded(phone);
-		}
+		await runDesktopLink(socket, session, () => job === this.desktopJob);
+		if (job === this.desktopJob) void this.onDesktopLinkEnded(phone);
 	}
 
 	/** Reconnects to a desktop that's still running. One that's over stays over until someone asks again. */
@@ -1046,7 +885,7 @@ export class Controller {
 		if (job !== this.desktopJob || this.phone !== phone) return;
 		this.update({ desktop: "connecting" });
 		try {
-			if (!(await phone.isDesktopRunning())) {
+			if (!(await phone.desktop.isServerRunning())) {
 				if (job === this.desktopJob) this.endDesktopLink("The desktop ended.");
 				return;
 			}
@@ -1071,16 +910,12 @@ export class Controller {
 	endSession() {
 		const phone = this.phone;
 		this.session?.stop();
-		const relay = this.relay;
-		this.relay = null;
-		relay?.deactivate();
-		this.closeWisp();
-		this.log.closeAll(CLOSE_NETWORK_ERROR, Date.now());
+		const link = this.link;
+		this.link = null;
+		link?.deactivate();
 		this.phone = null;
 		this.job++;
-		this.networkJob++;
 		this.desktopJob++;
-		this.statusWaiter = null;
 		this.update({
 			step: "usb",
 			phone: null,

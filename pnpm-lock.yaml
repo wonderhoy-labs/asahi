@@ -218,6 +218,12 @@ importers:
       '@tanstack/react-virtual':
         specifier: 3.14.26
         version: 3.14.26(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      '@wonderhoy-labs/shinonome':
+        specifier: https://github.com/wonderhoy-labs/shinonome/releases/download/v0.3.2/wonderhoy-labs-shinonome-0.3.2.tgz
+        version: https://github.com/wonderhoy-labs/shinonome/releases/download/v0.3.2/wonderhoy-labs-shinonome-0.3.2.tgz
+      '@wonderhoy-labs/shira':
+        specifier: https://github.com/wonderhoy-labs/shira/releases/download/v0.2.0/wonderhoy-labs-shira-0.2.0.tgz
+        version: https://github.com/wonderhoy-labs/shira/releases/download/v0.2.0/wonderhoy-labs-shira-0.2.0.tgz(@mercuryworkshop/wisp-js@https://codeload.github.com/wonderhoy-labs/wisp-js/tar.gz/960fa6b995d3b210d77fd81e99435aa7cf555721)
       '@yume-chan/adb':
         specifier: 2.6.4
         version: 2.6.4
@@ -227,9 +233,6 @@ importers:
       '@yume-chan/adb-daemon-webusb':
         specifier: 2.3.2
         version: 2.3.2
-      '@yume-chan/android-bin':
-        specifier: 2.1.0
-        version: 2.1.0
       '@yume-chan/stream-extra':
         specifier: 2.6.1
         version: 2.6.1
@@ -690,6 +693,16 @@ packages:
 
   '@vitest/utils@4.1.12':
     resolution: {integrity: sha512-Q3awXrwOfEV+qc3WmO5ONyE0yO7Q1gQ9/oyHxGLZ/pl7N3NO/ZztqQwKLuwMkV+CA1JYSIeO3gkHnRDIo4AVaA==}
+
+  '@wonderhoy-labs/shinonome@https://github.com/wonderhoy-labs/shinonome/releases/download/v0.3.2/wonderhoy-labs-shinonome-0.3.2.tgz':
+    resolution: {integrity: sha512-mAiIOs/IA1bvVdFu1aCSePldLeey8DAwcila3IP+t5rCqMofb10NeLF7awQj+EfW/zn3G/qdEQNOCuH5Hqj7HQ==, tarball: https://github.com/wonderhoy-labs/shinonome/releases/download/v0.3.2/wonderhoy-labs-shinonome-0.3.2.tgz}
+    version: 0.3.2
+
+  '@wonderhoy-labs/shira@https://github.com/wonderhoy-labs/shira/releases/download/v0.2.0/wonderhoy-labs-shira-0.2.0.tgz':
+    resolution: {integrity: sha512-2dy3wUTfPW6C5kSbKMlKUDoyXLrL2+MVogmP+rRHrYMXE9Mt3ek+GfKttg7FO8yo2coZvtW9qELVbvYm7DYj4g==, tarball: https://github.com/wonderhoy-labs/shira/releases/download/v0.2.0/wonderhoy-labs-shira-0.2.0.tgz}
+    version: 0.2.0
+    peerDependencies:
+      '@mercuryworkshop/wisp-js': '*'
 
   '@yume-chan/adb-credential-web@2.1.0':
     resolution: {integrity: sha512-ps5XWt+xxm6Mi9eF80ePprPJ/uRFMhfR437betQE8hixrjdZpkZgMlqZU6GlnuebMi0djrbP8GWB49jJekJVYA==}
@@ -1343,6 +1356,17 @@ snapshots:
       '@vitest/pretty-format': 4.1.12
       convert-source-map: 2.0.0
       tinyrainbow: 3.2.0
+
+  '@wonderhoy-labs/shinonome@https://github.com/wonderhoy-labs/shinonome/releases/download/v0.3.2/wonderhoy-labs-shinonome-0.3.2.tgz':
+    dependencies:
+      '@yume-chan/adb': 2.6.4
+      '@yume-chan/android-bin': 2.1.0
+
+  '@wonderhoy-labs/shira@https://github.com/wonderhoy-labs/shira/releases/download/v0.2.0/wonderhoy-labs-shira-0.2.0.tgz(@mercuryworkshop/wisp-js@https://codeload.github.com/wonderhoy-labs/wisp-js/tar.gz/960fa6b995d3b210d77fd81e99435aa7cf555721)':
+    dependencies:
+      '@mercuryworkshop/wisp-js': https://codeload.github.com/wonderhoy-labs/wisp-js/tar.gz/960fa6b995d3b210d77fd81e99435aa7cf555721
+      '@yume-chan/adb': 2.6.4
+      '@yume-chan/android-bin': 2.1.0
 
   '@yume-chan/adb-credential-web@2.1.0':
     dependencies:

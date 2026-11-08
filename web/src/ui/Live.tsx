@@ -1,8 +1,7 @@
+import { type SoundState, toggleFullscreen } from "@wonderhoy-labs/shinonome";
+import { formatRate, type LogTotals } from "@wonderhoy-labs/shira";
 import { useEffect, useRef, useState } from "react";
 import type { AsahiState, Controller } from "../asahi/controller";
-import { type SoundState, toggleFullscreen } from "../desktop/desktop-session";
-import { formatRate } from "../log/format";
-import type { LogTotals } from "../log/store";
 import { NetworkPanel, useLogSnapshot } from "./NetworkPanel";
 
 interface Props {
