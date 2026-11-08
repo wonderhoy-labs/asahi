@@ -4,11 +4,12 @@ import { AdbDaemonWebUsbDevice, AdbDaemonWebUsbDeviceManager } from "@yume-chan/
 import { Phone } from "./phone";
 
 /**
- * How much may be on its way on each socket before adb waits for the page to read it. Video queued here
- * is old by the time it's shown, and the phone can only skip ahead once this fills, so it's kept modest.
- * Over a cable it still leaves the network link room for hundreds of megabits.
+ * How much may be on its way on each socket before adb waits for the page to read it. The desktop and the network
+ * share one cable, so a video frame can wait behind this much network data: 128 KB is about 3 ms at USB 2's speed,
+ * where 512 KB was 13. Video queued here is old by the time it's shown, and the phone can only skip ahead once this
+ * fills. Acknowledged every couple of milliseconds, it still leaves the network room for more than the cable carries.
  */
-const DELAYED_ACK_BYTES = 512 * 1024;
+const DELAYED_ACK_BYTES = 128 * 1024;
 
 const manager = AdbDaemonWebUsbDeviceManager.BROWSER;
 

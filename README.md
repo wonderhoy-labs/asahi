@@ -82,6 +82,15 @@ When the session ends, the phone locks if its screen was off.
 
 Keys are sent by position, as on a US keyboard. On a Mac, Cmd acts as Ctrl, because that's what Android's shortcuts expect.
 
+The phone's sound plays in the page once you've clicked or typed in it, because browsers only allow sound after that. The
+speaker button in the top bar sends it back to the phone. Paste with your computer's usual shortcut to paste its text on the
+phone, and copy on the phone to put text on your computer's clipboard. Drop files on the desktop to save them in the phone's
+Downloads.
+
+Sharp mode, the **HD** button, gives the desktop your phone's own density, with more pixels to keep the same room. Text is
+sharper, and apps like Discord draw properly once reopened, but each frame takes longer: about 24 ms from capture to decoded
+instead of 14, in Shinonome's measurements of the same code.
+
 ### The network log
 
 Every connection gets a row, newest first, with the app that made it, the destination, its status and how much went each way.
@@ -137,6 +146,11 @@ reaching the phone through the `adb` server on the Mac instead of WebUSB:
 Allow the desktop started, took a new shape and streamed with no dropped frames, while a 256 MiB download ran on the same
 connection at 137 Mbit/s. Stopping it ended the server.
 
+**Sound, clipboard and dropped files.** Asahi's desktop server, run from a debug build, was checked over `adb forward` with a
+beeping test window: sound started and stopped on request, arriving 12 ms after capture, and pasted text came back after a copy
+on the phone. The page's side of these is Shinonome's code, which was checked in Chrome, including a real `Cmd+V` and a dropped
+file. Asahi's own page hasn't run them yet, because launching it would also have taken over the test phone's network.
+
 **On an Android 17 emulator,** the network came up and the page explained that the emulator can't make a desktop, with the
 network still working. The app's own screen was checked there in light and dark.
 
@@ -191,7 +205,13 @@ management like a monitor you just plugged in. Asahi doesn't reimplement any of 
 Normal apps can't create a trusted display, but the shell user that `adb` runs as can. So the APK also contains a small server,
 and the page starts it with `app_process` through `adb`, using the app's start script. The server creates the display, encodes it
 with the phone's H.264 encoder at low-latency settings, and injects your input into it. The page decodes with WebCodecs and draws
-to a canvas.
+to a canvas. The encoder is asked to run at up to 480 frames a second, which finishes each frame in about 9 ms instead of 18,
+and pointer moves go out at most every 4 ms in as few USB transfers as possible. Over WebUSB that comes to about 12 ms from
+capture to arrival.
+
+Sound comes from Android's remote submix, as scrcpy's does, in 10 ms packets of raw PCM, and the page keeps about 30 ms of it
+queued. The clipboard goes through Android's clipboard service. Android shows "Shell pasted from your clipboard" on the phone's
+own screen each time the phone's clipboard is sent to the page.
 
 A virtual display shares the phone's power state, so the desktop would go blank as soon as the phone slept. During a session the
 server wakes the phone whenever it sleeps and turns off only its screen.
@@ -260,7 +280,10 @@ connected.
 - An app's connection looks like it succeeded before the server has tried it, because Wisp doesn't confirm connections.
 - Wisp has no half-close, so a server that waits for the app to finish sending before it answers won't answer.
 - Traffic to your local network goes to the Wisp server too, which usually refuses it.
-- No sound and no shared clipboard from the desktop.
+- Discord, and likely other React Native apps, draws its text clipped and its panes too narrow on the desktop, because it lays
+  itself out at the phone screen's density and draws text at the desktop's. Turn on sharp mode, the **HD** button, and reopen
+  the app. Sharp mode costs some latency, so it's off by default.
+- Only text crosses the clipboard, and not while the phone is locked.
 - Keys go by position, so non-US layouts type the wrong characters.
 - Touch on the desktop hasn't been tried.
 

@@ -116,7 +116,7 @@ final class Hidden {
 		}
 	}
 
-	private static Object service(String name, String stubClass) throws ReflectiveOperationException {
+	static Object service(String name, String stubClass) throws ReflectiveOperationException {
 		Object binder = Class.forName("android.os.ServiceManager")
 				.getMethod("getService", String.class).invoke(null, name);
 		return Class.forName(stubClass).getMethod("asInterface", IBinder.class).invoke(null, binder);

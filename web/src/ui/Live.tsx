@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { AsahiState, Controller } from "../asahi/controller";
-import { toggleFullscreen } from "../desktop/desktop-session";
+import { type SoundState, toggleFullscreen } from "../desktop/desktop-session";
 import { formatRate } from "../log/format";
 import type { LogTotals } from "../log/store";
 import { NetworkPanel, useLogSnapshot } from "./NetworkPanel";
@@ -20,6 +20,56 @@ function useIsFullscreen(): boolean {
 	return fullscreen;
 }
 
+/** Whether files are being dragged over the element, which hands any dropped there to onDrop. */
+function useFileDrop(
+	element: React.RefObject<HTMLElement | null>,
+	enabled: boolean,
+	onDrop: (files: File[]) => void,
+): boolean {
+	const [dragging, setDragging] = useState(false);
+	const latest = useRef({ enabled, onDrop });
+	latest.current = { enabled, onDrop };
+	useEffect(() => {
+		const target = element.current;
+		if (!target) {
+			return;
+		}
+		const listeners = new AbortController();
+		const { signal } = listeners;
+		target.addEventListener(
+			"dragover",
+			(event) => {
+				if (latest.current.enabled && event.dataTransfer?.types.includes("Files")) {
+					event.preventDefault();
+					event.dataTransfer.dropEffect = "copy";
+					setDragging(true);
+				}
+			},
+			{ signal },
+		);
+		target.addEventListener(
+			"dragleave",
+			(event) => {
+				if (!target.contains(event.relatedTarget as Node | null)) {
+					setDragging(false);
+				}
+			},
+			{ signal },
+		);
+		target.addEventListener(
+			"drop",
+			(event) => {
+				event.preventDefault();
+				setDragging(false);
+				latest.current.onDrop(Array.from(event.dataTransfer?.files ?? []));
+			},
+			{ signal },
+		);
+		return () => listeners.abort();
+	}, [element]);
+	return dragging;
+}
+
 /** Always dark, because the desktop sits on black and anything bright pulls your eye away from it. */
 export function Live({ controller, state }: Props) {
 	const canvas = useRef<HTMLCanvasElement>(null);
@@ -28,6 +78,8 @@ export function Live({ controller, state }: Props) {
 	const noDesktop = state.desktop === "unavailable";
 	const [panelOpen, setPanelOpen] = useState(false);
 	const snapshot = useLogSnapshot(controller, false);
+	const area = useRef<HTMLDivElement>(null);
+	const dragging = useFileDrop(area, state.desktop === "up", (files) => void controller.saveToPhone(files));
 
 	useEffect(() => {
 		if (canvas.current) controller.attachCanvas(canvas.current);
@@ -49,7 +101,7 @@ export function Live({ controller, state }: Props) {
 				/>
 			)}
 			<div className="live-body">
-				<div className="screen-area">
+				<div className="screen-area" ref={area}>
 					<canvas
 						id="screen"
 						ref={canvas}
@@ -58,7 +110,11 @@ export function Live({ controller, state }: Props) {
 						tabIndex={0}
 						aria-label="Phone desktop"
 					/>
-					<ScreenMessage controller={controller} state={state} />
+					{dragging ? (
+						<ScreenNote text="Drop to save in your phone's Downloads." icon={<mdui-icon-upload-file />} />
+					) : (
+						<ScreenMessage controller={controller} state={state} />
+					)}
 				</div>
 				{showPanel && !fullscreen ? (
 					<NetworkPanel
@@ -80,8 +136,21 @@ interface TopBarProps extends Props {
 	canvas: React.RefObject<HTMLCanvasElement | null>;
 }
 
+const SOUND_LABELS: Record<SoundState, string> = {
+	off: "Sound plays on your phone. Play it here",
+	"needs-click": "Click to let this page play your phone's sound",
+	starting: "Moving the sound here",
+	on: "Sound plays here. Move it back to your phone",
+	failed: "Your phone wouldn't share its sound",
+};
+
+const SHARP_LABEL_ON =
+	"Sharp mode is on: the desktop uses your phone's density, which apps like Discord need. Turn it off for the lowest latency";
+const SHARP_LABEL_OFF =
+	"Sharp mode: use your phone's density, which apps like Discord need, at a little more latency. Reopen those apps after switching";
+
 function TopBar({ controller, state, totals, panelOpen, onTogglePanel, canvas }: TopBarProps) {
-	const { desktop, desktopStats } = state;
+	const { desktop, desktopStats, sound, sharp } = state;
 	return (
 		<header className="top-bar">
 			<img className="top-bar-logo" src="./logo.webp" alt="" />
@@ -127,7 +196,24 @@ function TopBar({ controller, state, totals, panelOpen, onTogglePanel, canvas }:
 					</mdui-button-icon>
 				</span>
 			) : null}
-			{/* A plain title, because the bar goes away while the pointer's on this and an mdui tooltip can't cope. */}
+			{/* Plain titles, because the bar goes away while the pointer's on these and an mdui tooltip can't cope. */}
+			<mdui-button-icon
+				title={SOUND_LABELS[sound]}
+				aria-label={SOUND_LABELS[sound]}
+				disabled={desktop !== "up"}
+				onClick={() => controller.toggleSound()}
+			>
+				{sound === "on" || sound === "starting" ? <mdui-icon-volume-up /> : <mdui-icon-volume-off />}
+			</mdui-button-icon>
+			<mdui-button-icon
+				title={sharp ? SHARP_LABEL_ON : SHARP_LABEL_OFF}
+				aria-label={sharp ? SHARP_LABEL_ON : SHARP_LABEL_OFF}
+				variant={sharp ? "tonal" : "standard"}
+				disabled={desktop !== "up"}
+				onClick={() => controller.toggleSharp()}
+			>
+				<mdui-icon-hd />
+			</mdui-button-icon>
 			<mdui-button-icon
 				title="Fullscreen"
 				aria-label="Fullscreen"
@@ -301,6 +387,17 @@ function ScreenMessage({ controller, state }: Props) {
 	}
 	if (!hasPicture) {
 		return <ScreenNote text="Waiting for the first picture." icon={<mdui-circular-progress />} />;
+	}
+	if (state.transfer) {
+		return (
+			<ScreenNote
+				text={`Sending ${state.transfer.name} to your phone… ${state.transfer.percent}%`}
+				icon={<mdui-circular-progress value={state.transfer.percent / 100} />}
+			/>
+		);
+	}
+	if (state.transferNote) {
+		return <ScreenNote text={state.transferNote} icon={<mdui-icon-upload-file />} />;
 	}
 	return null;
 }

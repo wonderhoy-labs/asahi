@@ -5,6 +5,7 @@ import android.hardware.display.DisplayManager;
 import android.hardware.display.VirtualDisplay;
 import android.net.LocalServerSocket;
 import android.net.LocalSocket;
+import android.util.DisplayMetrics;
 import android.os.Build;
 import android.view.Display;
 
@@ -31,6 +32,8 @@ final class Server {
 	private static final int TYPE_PONG = 3;
 	private static final int TYPE_AUTH_RESULT = 5;
 	private static final int TYPE_REPLACED = 6;
+	private static final int TYPE_AUDIO = 7;
+	private static final int TYPE_CLIPBOARD = 8;
 	private static final int TYPE_MOUSE = 16;
 	private static final int TYPE_SCROLL = 17;
 	private static final int TYPE_KEY = 18;
@@ -38,6 +41,10 @@ final class Server {
 	private static final int TYPE_STOP = 20;
 	private static final int TYPE_KEY_FRAME = 22;
 	private static final int TYPE_RESIZE = 23;
+	private static final int TYPE_AUDIO_CONTROL = 24;
+	private static final int TYPE_SET_CLIPBOARD = 25;
+
+	private static final int CLIPBOARD_PASTE = 1;
 
 	private static final int AUTH_OK = 1;
 
@@ -50,9 +57,18 @@ final class Server {
 	private static final int ELIGIBILITY_CHECK_TICK = 10;
 	private static final String SOCKET_NAME = "asahi-desktop";
 	/** The web page compares this with its own, and replaces a server it cannot talk to. */
-	private static final int PROTOCOL = 1;
+	private static final int PROTOCOL = 2;
 	private static final int MIN_DESKTOP_SIDE = 480;
 	private static final int MAX_DESKTOP_SIDE = 2560;
+	/**
+	 * Sharp mode gives the desktop the phone's own density, which some apps need: React Native ones such as Discord lay
+	 * themselves out at the phone's density and draw text at the display's, so any difference clips their text. To keep a
+	 * desktop's worth of room it also gets more pixels, as many as it would show at this density: 1.75 times each way at
+	 * the Pixel's 420, which took encoding from 9 to 16 ms a frame.
+	 */
+	private static final int SHARP_ROOM_DPI = 240;
+	private static final int MAX_SHARP_SIDE = 3840;
+	private static final int RESIZE_SHARP = 1;
 	// Small, so a slow link makes us drop frames rather than buffer seconds of old video.
 	private static final int SEND_BUFFER_BYTES = 192 * 1024;
 	private static final int QUEUED_FRAMES = 6;
@@ -60,6 +76,8 @@ final class Server {
 
 	private final Context context;
 	private final Options options;
+	/** The density chosen when the server started, which the desktop goes back to when sharp mode ends. */
+	private final int baseDpi;
 	private final File dir;
 	private final Object lock = new Object();
 	private final KeepAlive keepAlive;
@@ -78,6 +96,12 @@ final class Server {
 	private Display phoneDisplay;
 	private IdleSurface idleSurface;
 
+	/** Null if this phone's clipboard service can't be reached. */
+	private Clipboard clipboard;
+	// Guarded by clipboardLock. What both sides last agreed the clipboard holds, so a change isn't sent back.
+	private final Object clipboardLock = new Object();
+	private String clipboardText;
+
 	private volatile boolean stopping;
 	private volatile boolean locked = true;
 	private volatile boolean unlockedThisSession;
@@ -86,6 +110,7 @@ final class Server {
 	Server(Context context, Options options) {
 		this.context = context;
 		this.options = options;
+		this.baseDpi = options.dpi;
 		this.dir = new File(options.dir);
 		this.keepAlive = new KeepAlive(context);
 	}
@@ -106,6 +131,7 @@ final class Server {
 		socket = new LocalServerSocket(SOCKET_NAME);
 		Log.info("protocol: " + PROTOCOL);
 		createDisplay();
+		openClipboard();
 		Log.info("listening");
 
 		Thread keeper = new Thread(this::keepPhoneAwake, "keep-awake");
@@ -117,6 +143,52 @@ final class Server {
 
 		// stop() ends the process.
 		watch();
+	}
+
+	/** The phone screen's density, including any display size someone chose in Settings. */
+	@SuppressWarnings("deprecation")
+	private int phoneDensity() {
+		DisplayMetrics metrics = new DisplayMetrics();
+		phoneDisplay.getRealMetrics(metrics);
+		return metrics.densityDpi;
+	}
+
+	private void openClipboard() {
+		try {
+			Clipboard opened = Clipboard.open(context);
+			opened.listen(this::onClipboardChanged);
+			clipboard = opened;
+		} catch (ReflectiveOperationException | RuntimeException e) {
+			Log.info("clipboard unavailable: " + e);
+		}
+	}
+
+	/** On a binder thread. Hands the phone's new clipboard to the browser, unless the browser put it there. */
+	private void onClipboardChanged() {
+		String text = clipboard.text();
+		synchronized (clipboardLock) {
+			if (text == null || text.equals(clipboardText)) {
+				return;
+			}
+			clipboardText = text;
+		}
+		Session session;
+		synchronized (lock) {
+			session = current;
+		}
+		if (session != null) {
+			session.offerClipboard(text);
+		}
+	}
+
+	/** Puts the browser's clipboard on the phone, and pastes it if asked. Called with input held. */
+	private void setClipboard(String text, boolean paste) {
+		synchronized (clipboardLock) {
+			clipboardText = text;
+		}
+		if (clipboard != null && clipboard.setText(text) && paste) {
+			input.paste();
+		}
 	}
 
 	private void acceptClients() {
@@ -400,6 +472,10 @@ final class Server {
 		private volatile boolean closed;
 		private volatile boolean waitingForKey;
 		private volatile long droppedFrames;
+		private AudioCapture audio;
+		private volatile String audioState = "off";
+		// Sent by the sender thread, which never blocks the binder thread the clipboard arrives on.
+		private volatile String pendingClipboard;
 		// Sent by the sender thread, so a stuck connection can never block the watchdog.
 		volatile boolean statusDirty = true;
 		volatile long lastMessageAt = System.currentTimeMillis();
@@ -422,10 +498,13 @@ final class Server {
 			String json = "{\"displayId\":" + displayId
 					+ ",\"width\":" + options.width
 					+ ",\"height\":" + options.height
+					+ ",\"dpi\":" + options.dpi
 					+ ",\"locked\":" + locked
 					+ ",\"usable\":" + isUsable()
 					+ ",\"desktop\":" + desktopEligible
 					+ ",\"encoder\":\"" + encoder.name() + "\""
+					+ ",\"audio\":\"" + audioState + "\""
+					+ ",\"clipboard\":" + (clipboard != null)
 					+ ",\"dropped\":" + droppedFrames + "}";
 			link.send(message(TYPE_STATUS, json.getBytes(StandardCharsets.UTF_8)), null);
 		}
@@ -455,6 +534,11 @@ final class Server {
 					Frame frame = queue.poll(SENDER_POLL_MS, TimeUnit.MILLISECONDS);
 					if (statusDirty) {
 						sendStatus();
+					}
+					String text = pendingClipboard;
+					if (text != null) {
+						pendingClipboard = null;
+						link.send(new byte[] {TYPE_CLIPBOARD}, text.getBytes(StandardCharsets.UTF_8));
 					}
 					if (frame == null) {
 						continue;
@@ -491,7 +575,14 @@ final class Server {
 						encoder.requestKeyFrame();
 						break;
 					case TYPE_RESIZE:
-						resize(m.getInt(), m.getInt());
+						int width = m.getInt();
+						int height = m.getInt();
+						// Clients from before sharp mode send no flags.
+						boolean sharp = m.hasRemaining() && (m.get() & RESIZE_SHARP) != 0;
+						resize(width, height, sharp);
+						break;
+					case TYPE_AUDIO_CONTROL:
+						setAudio(m.get() != 0);
 						break;
 					case TYPE_STOP:
 						new Thread(() -> stop("client asked"), "stop").start();
@@ -506,21 +597,86 @@ final class Server {
 			}
 		}
 
-		/** Gives the desktop the shape of the browser's window, so the picture fills it with no bars. */
-		private void resize(int width, int height) throws IOException {
-			int newWidth = desktopSide(width);
-			int newHeight = desktopSide(height);
+		void offerClipboard(String text) {
+			pendingClipboard = text;
+		}
+
+		/** Moves the phone's sound to the browser, or back to the phone. */
+		private void setAudio(boolean on) {
 			synchronized (lock) {
-				if (options.fixedSize || closed || (newWidth == options.width && newHeight == options.height)) {
+				if (closed || on == (audio != null)) {
 					return;
 				}
-				Log.info("desktop resized to " + newWidth + "x" + newHeight);
+				if (!on) {
+					audio.stop();
+					audio = null;
+					audioState = "off";
+					Log.info("audio back on the phone");
+				} else {
+					try {
+						audio = new AudioCapture(context, new AudioCapture.Sink() {
+							@Override
+							public void onAudio(long captureUs, byte[] pcm) {
+								sendAudio(captureUs, pcm);
+							}
+
+							@Override
+							public void onAudioFailed(String reason) {
+								Log.info(reason);
+								audioState = "failed";
+								statusDirty = true;
+							}
+						});
+						audioState = "on";
+						Log.info("audio to the browser");
+					} catch (IOException e) {
+						Log.info(e.getMessage());
+						audioState = "failed";
+					}
+				}
+				statusDirty = true;
+			}
+		}
+
+		private void sendAudio(long captureUs, byte[] pcm) {
+			ByteBuffer head = ByteBuffer.allocate(9);
+			head.put((byte) TYPE_AUDIO);
+			head.putLong(captureUs);
+			try {
+				link.send(head.array(), pcm);
+			} catch (IOException e) {
+				link.close();
+			}
+		}
+
+		/**
+		 * Gives the desktop the shape of the browser's window, so the picture fills it with no bars. In sharp mode it
+		 * also takes the phone's density, with more pixels to match.
+		 */
+		private void resize(int width, int height, boolean sharp) throws IOException {
+			int newWidth = desktopSide(width);
+			int newHeight = desktopSide(height);
+			int newDpi = baseDpi;
+			if (sharp) {
+				newDpi = phoneDensity();
+				double scale = Math.max(1, newDpi / (double) SHARP_ROOM_DPI);
+				scale = Math.min(scale, MAX_SHARP_SIDE / (double) Math.max(newWidth, newHeight));
+				newWidth = (int) Math.round(newWidth * scale) & ~1;
+				newHeight = (int) Math.round(newHeight * scale) & ~1;
+			}
+			synchronized (lock) {
+				if (options.fixedSize || closed
+						|| (newWidth == options.width && newHeight == options.height && newDpi == options.dpi)) {
+					return;
+				}
+				Log.info("desktop resized to " + newWidth + "x" + newHeight + " at " + newDpi + " dpi");
 				display.setSurface(idleSurface.surface());
 				encoder.stop();
 				queue.clear();
 				options.width = newWidth;
 				options.height = newHeight;
-				display.resize(newWidth, newHeight, options.dpi);
+				options.dpi = newDpi;
+				display.resize(newWidth, newHeight, newDpi);
 				encoder = new Encoder(options, this::onFrame);
 				display.setSurface(encoder.surface());
 				statusDirty = true;
@@ -545,6 +701,12 @@ final class Server {
 						break;
 					case TYPE_KEY:
 						input.key(m.get(), m.getInt(), m.getInt());
+						break;
+					case TYPE_SET_CLIPBOARD:
+						boolean paste = (m.get() & CLIPBOARD_PASTE) != 0;
+						byte[] text = new byte[m.remaining()];
+						m.get(text);
+						setClipboard(new String(text, StandardCharsets.UTF_8), paste);
 						break;
 					default:
 						Log.info("unknown message type " + type);
@@ -605,6 +767,10 @@ final class Server {
 			}
 			if (encoder != null) {
 				encoder.stop();
+			}
+			if (audio != null) {
+				audio.stop();
+				audio = null;
 			}
 		}
 	}
