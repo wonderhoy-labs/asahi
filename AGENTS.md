@@ -43,9 +43,10 @@ cd web && pnpm test && pnpm build
   until someone has.
 - **On the PIN-locked test phone**, set `localStorage['asahi.dev.desktop-args'] = '--screen-on'` for dev sessions,
   or ending a session locks the phone.
-- **Test sessions in real Chrome.** The Claude app's built-in browser pane crashes its renderer when a session ends over
-  the dev adb-server path, and real Chrome's page stops answering DevTools after the network is turned off on that path.
-  Shira's page does the same.
+- **Test sessions in real Chrome.** Before Shira 0.2.1, ending a session with apps connected crashed the tab: Chrome
+  crashed when the Wisp connection closed in the same task as the streams' last writes, which looked like the page
+  no longer answering DevTools. Shira 0.2.1 fixed that in real Chrome. The Claude app's built-in browser pane crashed
+  its renderer when a session ended too, and hasn't been tried since.
 - **Asahi 0.1.0 had its own app**, `com.wonderhoylabs.asahi`, signed with the key behind the `ASAHI_*` secrets. Nothing
   builds it now, but never replace or delete that key or those secrets.
 
