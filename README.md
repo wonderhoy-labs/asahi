@@ -90,8 +90,9 @@ phone, and copy on the phone to put text on your computer's clipboard. Drop file
 Downloads.
 
 Sharp mode, the **HD** button, gives the desktop your phone's own density, with more pixels to keep the same room. Text is
-sharper, and apps like Discord draw properly once reopened, but each frame takes longer: about 24 ms from capture to decoded
-instead of 14, in Shinonome's measurements of the same code.
+sharper, and apps like Discord lay out properly, but each frame takes longer: about 24 ms from capture to decoded instead of
+14, in Shinonome's measurements of the same code. When an app that needs it comes to the front with sharp mode off, the page
+offers to turn it on, and turning it on restarts those apps with their windows where they were.
 
 ### The network log
 
@@ -335,9 +336,10 @@ connected.
 - An app's connection looks like it succeeded before the server has tried it, because Wisp doesn't confirm connections.
 - Wisp has no half-close, so a server that waits for the app to finish sending before it answers won't answer.
 - Traffic to your local network goes to the Wisp server too, which usually refuses it.
-- Discord, and likely other React Native apps, draws its text clipped and its panes too narrow on the desktop, because it lays
-  itself out at the phone screen's density and draws text at the desktop's. Turn on sharp mode, the **HD** button, and reopen
-  the app. Sharp mode costs some latency, so it's off by default.
+- Discord, and other React Native apps, come apart on the desktop without sharp mode, because they lay out at the phone
+  screen's density whatever display they're on. The page offers sharp mode when one is in front, and turning it on restarts
+  them, which closes anything open in them, a call included. Sharp mode costs some latency, so it's off by default. The
+  offer is Shinonome 0.3.3's, tested there on the Pixel, and hasn't been run in Asahi's page yet.
 - Only text crosses the clipboard, and not while the phone is locked.
 - Keys go by position, so non-US layouts type the wrong characters.
 - Touch on the desktop hasn't been tried.
