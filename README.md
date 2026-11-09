@@ -157,7 +157,14 @@ enter it again after a reload. Key-based logins aren't supported.
 
 ## What has been tested
 
-Everything here is on a Pixel 10 Pro running Android 17 (build `CP3A.260905.009`, not rooted), with a Mac.
+Everything here is on a Pixel 10 Pro running Android 17 (build `CP3A.260905.009`, not rooted), with a Mac, except where
+it says an emulator.
+
+**Shira 0.2.1's fix for ending a session, on an Android 17 emulator.** In Chrome 156 through the development server's
+link to `adb` and its Wisp server: **Install it for me** put Shira 0.2.1 on the emulator, **Launch** brought its VPN up, a
+Wikipedia page opened in the emulator's browser, and 8 seconds later **End session**. With Shira 0.2.0 the tab crashed as
+the session ended, in the one try. With 0.2.1 the page kept answering and the VPN went down, in both tries. This hasn't been
+tried on the phone or over WebUSB.
 
 **Asahi 0.2.0, on Shira's and Shinonome's libraries, in Chrome through the development server's link to `adb`.** The real
 page, with Shira 0.2.0 and Shinonome 0.3.2 from their releases:
