@@ -77,6 +77,8 @@ export interface AsahiState {
 	sound: SoundState;
 	/** The desktop at the phone's density, for apps such as Discord, at a little more latency. Remembered. */
 	sharp: boolean;
+	/** Apps someone said not now to sharp mode for. */
+	sharpDeclined: ReadonlySet<string>;
 	/** A file dropped on the desktop, on its way to the phone. */
 	transfer: { name: string; percent: number } | null;
 	/** What happened to the last one. */
@@ -224,6 +226,7 @@ export class Controller {
 		hasPicture: false,
 		sound: "off",
 		sharp: stored(STORED_SHARP) === "on",
+		sharpDeclined: new Set(),
 		transfer: null,
 		transferNote: null,
 		busy: null,
@@ -789,10 +792,19 @@ export class Controller {
 	}
 
 	toggleSharp() {
-		const sharp = !this.state.sharp;
+		this.setSharp(!this.state.sharp);
+	}
+
+	/** Turning it on restarts the desktop's apps that need it, which Shinonome's server does. */
+	setSharp(sharp: boolean) {
 		store(STORED_SHARP, sharp ? "on" : "off");
 		this.update({ sharp });
 		this.session?.setSharp(sharp);
+	}
+
+	/** Not now, for the app that wanted sharp mode. It won't ask about that app again until the page reloads. */
+	declineSharp(app: string) {
+		this.update({ sharpDeclined: new Set([...this.state.sharpDeclined, app]) });
 	}
 
 	/** Moves the phone's sound here, or back to the phone. From a click, which browsers need before playing sound. */
