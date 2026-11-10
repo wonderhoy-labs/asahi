@@ -2,6 +2,7 @@ import { type SoundState, sharpSuggestion, toggleFullscreen } from "@wonderhoy-l
 import { formatRate, type LogTotals } from "@wonderhoy-labs/shira";
 import { useEffect, useRef, useState } from "react";
 import type { AsahiState, Controller } from "../asahi/controller";
+import type { Machine, Source } from "../asahi/minori";
 import { NetworkPanel, useLogSnapshot } from "./NetworkPanel";
 
 interface Props {
@@ -78,7 +79,12 @@ export function Live({ controller, state }: Props) {
 	const [panelOpen, setPanelOpen] = useState(false);
 	const snapshot = useLogSnapshot(controller, false);
 	const area = useRef<HTMLDivElement>(null);
-	const dragging = useFileDrop(area, state.desktop === "up", (files) => void controller.saveToPhone(files));
+	const machine = state.source.kind === "machine" ? state.source : null;
+	const dragging = useFileDrop(
+		area,
+		state.desktop === "up" && !machine,
+		(files) => void controller.saveToPhone(files),
+	);
 
 	useEffect(() => {
 		if (canvas.current) controller.attachCanvas(canvas.current);
@@ -101,6 +107,7 @@ export function Live({ controller, state }: Props) {
 			)}
 			<div className="live-body">
 				<div className="screen-area" ref={area}>
+					{/* Stays on the page while a machine is shown, so the Pixel's desktop picks up where it was. */}
 					<canvas
 						id="screen"
 						ref={canvas}
@@ -108,13 +115,21 @@ export function Live({ controller, state }: Props) {
 						height={1080}
 						tabIndex={0}
 						aria-label="Phone desktop"
+						hidden={machine !== null}
 					/>
-					{dragging ? (
+					{machine ? (
+						<MachineScreen
+							key={`${machine.vm}-${machine.view}-${state.machineAttempt}`}
+							controller={controller}
+							state={state}
+							source={machine}
+						/>
+					) : dragging ? (
 						<ScreenNote text="Drop to save in your phone's Downloads." icon={<mdui-icon-upload-file />} />
 					) : (
 						<ScreenMessage controller={controller} state={state} />
 					)}
-					<SharpPrompt controller={controller} state={state} />
+					{machine ? null : <SharpPrompt controller={controller} state={state} />}
 				</div>
 				{showPanel && !fullscreen ? (
 					<NetworkPanel
@@ -155,14 +170,23 @@ function TopBar({ controller, state, totals, panelOpen, onTogglePanel, canvas }:
 		<header className="top-bar">
 			<img className="top-bar-logo" src="./logo.webp" alt="" />
 			<span className="top-bar-phone">{state.phone ?? state.usbDevice ?? "Your phone"}</span>
-			<StatusChip light={desktopLight(state)} icon={<mdui-icon-desktop-windows />} label={desktopLabel(state)}>
-				{desktopStats && desktop === "up" ? (
-					<span className="chip-detail">
-						{desktopStats.fps} fps ·{" "}
-						{desktopStats.latencyMs === null ? "–" : `${desktopStats.latencyMs.toFixed(0)} ms`}
-					</span>
-				) : null}
-			</StatusChip>
+			{state.minoriInstalled ? <SourceMenu controller={controller} state={state} /> : null}
+			{state.source.kind === "machine" ? (
+				<StatusChip light={machineLight(state)} icon={<mdui-icon-computer />} label={machineLabel(state)} />
+			) : (
+				<StatusChip
+					light={desktopLight(state)}
+					icon={<mdui-icon-desktop-windows />}
+					label={desktopLabel(state)}
+				>
+					{desktopStats && desktop === "up" ? (
+						<span className="chip-detail">
+							{desktopStats.fps} fps ·{" "}
+							{desktopStats.latencyMs === null ? "–" : `${desktopStats.latencyMs.toFixed(0)} ms`}
+						</span>
+					) : null}
+				</StatusChip>
+			)}
 			<StatusChip
 				light={networkLight(state)}
 				icon={<mdui-icon-public />}
@@ -268,6 +292,138 @@ function StatusChip({
 			{content}
 		</button>
 	);
+}
+
+type MachineSource = Extract<Source, { kind: "machine" }>;
+
+/** Picks what the tab shows: the Pixel's desktop, or a Minori machine's desktop or console. Only with Minori. */
+function SourceMenu({ controller, state }: Props) {
+	const { source, machines, machinesProblem } = state;
+	const label =
+		source.kind === "pixel"
+			? "Pixel desktop"
+			: `${source.name} ${source.view === "desktop" ? "desktop" : "console"}`;
+	const pick = (machine: Machine, view: MachineSource["view"]) =>
+		controller.chooseSource({ kind: "machine", vm: machine.id, name: machine.name, view });
+	let items: React.ReactNode;
+	if (machinesProblem) {
+		items = <mdui-menu-item disabled>{machinesProblem}</mdui-menu-item>;
+	} else if (machines === null) {
+		items = <mdui-menu-item disabled>Asking Minori for its machines</mdui-menu-item>;
+	} else if (machines.length === 0) {
+		items = <mdui-menu-item disabled>No machines in Minori yet</mdui-menu-item>;
+	} else {
+		items = machines.flatMap((machine) => {
+			const note = machine.state === "running" ? "" : " · starts it";
+			return [
+				// A desktop goes through Minori's guest agent; a console doesn't need it.
+				machine.agent ? (
+					<mdui-menu-item key={`${machine.id}-desktop`} onClick={() => pick(machine, "desktop")}>
+						<mdui-icon-computer slot="icon" />
+						{machine.name}: desktop{note}
+					</mdui-menu-item>
+				) : null,
+				<mdui-menu-item key={`${machine.id}-console`} onClick={() => pick(machine, "console")}>
+					<mdui-icon-terminal slot="icon" />
+					{machine.name}: console{note}
+				</mdui-menu-item>,
+			];
+		});
+	}
+	return (
+		<mdui-dropdown>
+			<mdui-button
+				slot="trigger"
+				variant="text"
+				className="source-button"
+				onClick={() => void controller.loadMachines()}
+			>
+				{source.kind === "pixel" ? (
+					<mdui-icon-smartphone slot="icon" />
+				) : source.view === "desktop" ? (
+					<mdui-icon-computer slot="icon" />
+				) : (
+					<mdui-icon-terminal slot="icon" />
+				)}
+				{label}
+				<mdui-icon-arrow-drop-down slot="end-icon" />
+			</mdui-button>
+			<mdui-menu>
+				<mdui-menu-item onClick={() => controller.chooseSource({ kind: "pixel" })}>
+					<mdui-icon-smartphone slot="icon" />
+					Pixel desktop
+				</mdui-menu-item>
+				<mdui-divider />
+				{items}
+			</mdui-menu>
+		</mdui-dropdown>
+	);
+}
+
+/** A Minori machine's desktop or console, in place of the Pixel's desktop. */
+function MachineScreen({ controller, state, source }: Props & { source: MachineSource }) {
+	const canvas = useRef<HTMLCanvasElement>(null);
+	const terminal = useRef<HTMLDivElement>(null);
+	useEffect(() => {
+		const element = source.view === "desktop" ? canvas.current : terminal.current;
+		if (element) controller.attachMachine(element);
+		return () => controller.releaseMachine();
+	}, [controller, source.view]);
+	const { machineView, machineMessage } = state;
+	return (
+		<>
+			{source.view === "desktop" ? (
+				<canvas
+					id="machine-screen"
+					ref={canvas}
+					width={1280}
+					height={720}
+					tabIndex={0}
+					aria-label={`${source.name}'s desktop`}
+				/>
+			) : (
+				<div className="machine-console" ref={terminal} />
+			)}
+			{machineView === "ended" ? (
+				<div className="screen-card" role="status">
+					{source.view === "desktop" ? <mdui-icon-computer /> : <mdui-icon-terminal />}
+					<h2>
+						{source.name}'s {source.view} closed
+					</h2>
+					<p>{machineMessage ?? "It ended."}</p>
+					<div className="actions">
+						<mdui-button variant="filled" onClick={() => controller.retryMachine()}>
+							Open it again
+						</mdui-button>
+						<mdui-button variant="text" onClick={() => controller.chooseSource({ kind: "pixel" })}>
+							Back to the Pixel
+						</mdui-button>
+					</div>
+				</div>
+			) : machineView === "starting" || machineView === "connecting" ? (
+				<ScreenNote
+					text={
+						machineMessage ??
+						(machineView === "starting" ? `Getting ${source.name} ready.` : `Connecting to ${source.name}.`)
+					}
+					icon={<mdui-circular-progress />}
+				/>
+			) : null}
+		</>
+	);
+}
+
+function machineLight({ machineView }: AsahiState): Light {
+	if (machineView === "up") return "good";
+	if (machineView === "ended") return "bad";
+	return "busy";
+}
+
+function machineLabel({ source, machineView }: AsahiState): string {
+	if (source.kind !== "machine") return "";
+	if (machineView === "up") return source.name;
+	if (machineView === "ended") return `${source.name} closed`;
+	return `${source.name} starting`;
 }
 
 function desktopLight({ desktop }: AsahiState): Light {

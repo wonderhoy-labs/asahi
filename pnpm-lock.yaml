@@ -218,12 +218,18 @@ importers:
       '@tanstack/react-virtual':
         specifier: 3.14.26
         version: 3.14.26(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      '@wonderhoy-labs/minori':
+        specifier: link:../../minori/packages/minori
+        version: link:../../minori/packages/minori
       '@wonderhoy-labs/shinonome':
         specifier: https://github.com/wonderhoy-labs/shinonome/releases/download/v0.3.3/wonderhoy-labs-shinonome-0.3.3.tgz
         version: https://github.com/wonderhoy-labs/shinonome/releases/download/v0.3.3/wonderhoy-labs-shinonome-0.3.3.tgz
       '@wonderhoy-labs/shira':
         specifier: https://github.com/wonderhoy-labs/shira/releases/download/v0.2.1/wonderhoy-labs-shira-0.2.1.tgz
         version: https://github.com/wonderhoy-labs/shira/releases/download/v0.2.1/wonderhoy-labs-shira-0.2.1.tgz(@mercuryworkshop/wisp-js@https://codeload.github.com/wonderhoy-labs/wisp-js/tar.gz/960fa6b995d3b210d77fd81e99435aa7cf555721)
+      '@xterm/xterm':
+        specifier: 5.5.0
+        version: 5.5.0
       '@yume-chan/adb':
         specifier: 2.6.4
         version: 2.6.4
@@ -692,6 +698,9 @@ packages:
     version: 0.2.1
     peerDependencies:
       '@mercuryworkshop/wisp-js': '*'
+
+  '@xterm/xterm@5.5.0':
+    resolution: {integrity: sha512-hqJHYaQb5OptNunnyAnkHyM8aCjZ1MEIDTQu1iIbbTD/xops91NB5yq1ZK/dC2JDbVWtF23zUtl9JE2NqwT87A==}
 
   '@yume-chan/adb-credential-web@2.1.0':
     resolution: {integrity: sha512-ps5XWt+xxm6Mi9eF80ePprPJ/uRFMhfR437betQE8hixrjdZpkZgMlqZU6GlnuebMi0djrbP8GWB49jJekJVYA==}
@@ -1316,6 +1325,8 @@ snapshots:
       '@mercuryworkshop/wisp-js': https://codeload.github.com/wonderhoy-labs/wisp-js/tar.gz/960fa6b995d3b210d77fd81e99435aa7cf555721
       '@yume-chan/adb': 2.6.4
       '@yume-chan/android-bin': 2.1.0
+
+  '@xterm/xterm@5.5.0': {}
 
   '@yume-chan/adb-credential-web@2.1.0':
     dependencies:

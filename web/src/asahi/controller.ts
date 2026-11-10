@@ -24,6 +24,7 @@ import type { AdbSocket } from "@yume-chan/adb";
 import type { AdbDaemonWebUsbDevice } from "@yume-chan/adb-daemon-webusb";
 import type { Phone, PhoneKind } from "../adb/phone";
 import { authorizeUsb, claimUsb, knownPhone, pickPhone, UsbBusyError, type UsbConnection } from "../adb/usb";
+import { hasMinori, listMachines, type Machine, MachineView, type MachineViewState, type Source } from "./minori";
 
 /** The onboarding, in order, and then the session itself. */
 export type Step = "usb" | "authorize" | "server" | "app" | "launch" | "live";
@@ -83,6 +84,19 @@ export interface AsahiState {
 	transfer: { name: string; percent: number } | null;
 	/** What happened to the last one. */
 	transferNote: string | null;
+
+	/** What the tab shows: the Pixel's desktop, unless someone picked a Minori machine. */
+	source: Source;
+	/** Whether Minori is on the phone. Without it there's nothing to pick, and the page looks as it always did. */
+	minoriInstalled: boolean;
+	/** Minori's machines, once someone opened the menu. */
+	machines: Machine[] | null;
+	machinesProblem: string | null;
+	/** How the picked machine's desktop or console is doing, and why it ended. */
+	machineView: MachineViewState | null;
+	machineMessage: string | null;
+	/** Bumps to open the machine's view again. */
+	machineAttempt: number;
 
 	/** What to tell the person to do while something's happening. */
 	busy: string | null;
@@ -229,6 +243,13 @@ export class Controller {
 		sharpDeclined: new Set(),
 		transfer: null,
 		transferNote: null,
+		source: { kind: "pixel" },
+		minoriInstalled: false,
+		machines: null,
+		machinesProblem: null,
+		machineView: null,
+		machineMessage: null,
+		machineAttempt: 0,
 		busy: null,
 		error: null,
 		notice: null,
@@ -255,6 +276,7 @@ export class Controller {
 	private desktopJob = 0;
 	private transferNoteTimer: ReturnType<typeof setTimeout> | undefined;
 	private sending = false;
+	private machine: MachineView | null = null;
 	private desktopOpening: Promise<void> = Promise.resolve();
 
 	constructor() {
@@ -388,6 +410,12 @@ export class Controller {
 		const lost = () => this.onPhoneLost(phone);
 		phone.disconnected.then(lost, lost);
 		this.update({ phone: phone.name, phoneKind: phone.kind, busy: null, error: null });
+		void hasMinori(phone).then(
+			(minoriInstalled) => {
+				if (this.phone === phone) this.update({ minoriInstalled });
+			},
+			(error: unknown) => console.info("couldn't look for Minori", error),
+		);
 		void phone.network.packagesByUid().then(
 			(packages) => {
 				this.log.packages = packages;
@@ -426,6 +454,7 @@ export class Controller {
 		if (this.phone !== phone) return;
 		this.phone = null;
 		this.job++;
+		this.closeMachine();
 		if (this.state.step === "live") {
 			this.desktopJob++;
 			this.stopNetwork();
@@ -916,6 +945,72 @@ export class Controller {
 		this.update({ desktop: "ended", notice, desktopStatus: null, desktopStats: null, hasPicture: false });
 	}
 
+	// Minori's machines
+
+	/** Asks Minori for its machines, starting it if it isn't running. Only when someone opens the menu. */
+	async loadMachines() {
+		const phone = this.phone;
+		if (!phone) return;
+		this.update({ machinesProblem: null });
+		try {
+			const machines = await listMachines(phone);
+			if (this.phone === phone) this.update({ machines });
+		} catch (error) {
+			if (this.phone === phone) this.update({ machinesProblem: message(error) });
+		}
+	}
+
+	/** Shows the Pixel's desktop or a machine. The Pixel's desktop keeps running on the phone while it's not shown. */
+	chooseSource(source: Source) {
+		const current = this.state.source;
+		if (JSON.stringify(current) === JSON.stringify(source)) return;
+		this.closeMachine();
+		if (source.kind === "pixel") {
+			this.update({ source, machineView: null, machineMessage: null });
+			void this.restartDesktop();
+			return;
+		}
+		if (current.kind === "pixel") {
+			// Let go of the Pixel's desktop link, so its video doesn't stream to a hidden canvas.
+			this.desktopJob++;
+			void this.desktopSocket?.close();
+			this.desktopSocket = null;
+			this.session?.detach();
+			this.update({ desktop: "connecting", hasPicture: false, desktopStats: null });
+		}
+		this.update({ source, machineView: "starting", machineMessage: null });
+	}
+
+	/** The machine's screen hands over its canvas, or its console's element, when it appears. */
+	attachMachine(element: HTMLElement) {
+		const { source } = this.state;
+		const phone = this.phone;
+		if (source.kind !== "machine" || !phone) return;
+		this.closeMachine();
+		const view = new MachineView(phone, source, {
+			onState: (machineView, machineMessage) => {
+				if (this.machine === view) this.update({ machineView, machineMessage });
+			},
+		});
+		this.machine = view;
+		if (source.view === "desktop") void view.showDesktop(element as HTMLCanvasElement);
+		else void view.showConsole(element);
+	}
+
+	releaseMachine() {
+		this.closeMachine();
+	}
+
+	/** Opens the machine's desktop or console again, after it ended. */
+	retryMachine() {
+		this.update({ machineView: "starting", machineMessage: null, machineAttempt: this.state.machineAttempt + 1 });
+	}
+
+	private closeMachine() {
+		this.machine?.close();
+		this.machine = null;
+	}
+
 	// Ending
 
 	/** Ends the desktop and the network, and hands USB back so adb and other tools can use the phone again. */
@@ -928,11 +1023,17 @@ export class Controller {
 		this.phone = null;
 		this.job++;
 		this.desktopJob++;
+		this.closeMachine();
 		this.update({
 			step: "usb",
 			phone: null,
 			usbDevice: null,
 			launchStage: null,
+			source: { kind: "pixel" },
+			minoriInstalled: false,
+			machines: null,
+			machineView: null,
+			machineMessage: null,
 			network: "off",
 			desktop: "off",
 			desktopStatus: null,

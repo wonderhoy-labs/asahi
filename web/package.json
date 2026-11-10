@@ -23,12 +23,14 @@
 		"ws": "8.22.1"
 	},
 	"dependencies": {
-		"@wonderhoy-labs/shinonome": "https://github.com/wonderhoy-labs/shinonome/releases/download/v0.3.3/wonderhoy-labs-shinonome-0.3.3.tgz",
-		"@wonderhoy-labs/shira": "https://github.com/wonderhoy-labs/shira/releases/download/v0.2.1/wonderhoy-labs-shira-0.2.1.tgz",
 		"@fontsource-variable/roboto-flex": "5.3.0",
 		"@mdui/icons": "1.0.4",
 		"@mercuryworkshop/wisp-js": "github:wonderhoy-labs/wisp-js#960fa6b995d3b210d77fd81e99435aa7cf555721",
 		"@tanstack/react-virtual": "3.14.26",
+		"@wonderhoy-labs/minori": "link:../../minori/packages/minori",
+		"@wonderhoy-labs/shinonome": "https://github.com/wonderhoy-labs/shinonome/releases/download/v0.3.3/wonderhoy-labs-shinonome-0.3.3.tgz",
+		"@wonderhoy-labs/shira": "https://github.com/wonderhoy-labs/shira/releases/download/v0.2.1/wonderhoy-labs-shira-0.2.1.tgz",
+		"@xterm/xterm": "5.5.0",
 		"@yume-chan/adb": "2.6.4",
 		"@yume-chan/adb-credential-web": "2.1.0",
 		"@yume-chan/adb-daemon-webusb": "2.3.2",
