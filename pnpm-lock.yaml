@@ -201,11 +201,11 @@ importers:
         specifier: 26.6.6
         version: 26.6.6
       '@wonderhoy-labs/shiho':
-        specifier: https://github.com/wonderhoy-labs/shiho/releases/download/v0.1.1/wonderhoy-labs-shiho-0.1.1.tgz
-        version: https://github.com/wonderhoy-labs/shiho/releases/download/v0.1.1/wonderhoy-labs-shiho-0.1.1.tgz(@wonderhoy-labs/shira@https://github.com/wonderhoy-labs/shira/releases/download/v0.3.0/wonderhoy-labs-shira-0.3.0.tgz(@mercuryworkshop/wisp-js@0.5.3))(@yume-chan/adb@2.6.4)(@yume-chan/stream-extra@2.6.1)
+        specifier: https://github.com/wonderhoy-labs/shiho/releases/download/v0.2.0/wonderhoy-labs-shiho-0.2.0.tgz
+        version: https://github.com/wonderhoy-labs/shiho/releases/download/v0.2.0/wonderhoy-labs-shiho-0.2.0.tgz(@wonderhoy-labs/shira@https://github.com/wonderhoy-labs/shira/releases/download/v0.4.0/wonderhoy-labs-shira-0.4.0.tgz(@mercuryworkshop/wisp-js@0.5.3))(@yume-chan/adb@2.6.4)(@yume-chan/stream-extra@2.6.1)
       '@wonderhoy-labs/shira':
-        specifier: https://github.com/wonderhoy-labs/shira/releases/download/v0.3.0/wonderhoy-labs-shira-0.3.0.tgz
-        version: https://github.com/wonderhoy-labs/shira/releases/download/v0.3.0/wonderhoy-labs-shira-0.3.0.tgz(@mercuryworkshop/wisp-js@0.5.3)
+        specifier: https://github.com/wonderhoy-labs/shira/releases/download/v0.4.0/wonderhoy-labs-shira-0.4.0.tgz
+        version: https://github.com/wonderhoy-labs/shira/releases/download/v0.4.0/wonderhoy-labs-shira-0.4.0.tgz(@mercuryworkshop/wisp-js@0.5.3)
       '@yume-chan/adb':
         specifier: 2.6.4
         version: 2.6.4
@@ -234,14 +234,14 @@ importers:
         specifier: https://github.com/wonderhoy-labs/minori/releases/download/v0.6.0/wonderhoy-labs-minori-0.6.0.tgz
         version: https://github.com/wonderhoy-labs/minori/releases/download/v0.6.0/wonderhoy-labs-minori-0.6.0.tgz
       '@wonderhoy-labs/shiho':
-        specifier: https://github.com/wonderhoy-labs/shiho/releases/download/v0.1.1/wonderhoy-labs-shiho-0.1.1.tgz
-        version: https://github.com/wonderhoy-labs/shiho/releases/download/v0.1.1/wonderhoy-labs-shiho-0.1.1.tgz(@wonderhoy-labs/shira@https://github.com/wonderhoy-labs/shira/releases/download/v0.3.0/wonderhoy-labs-shira-0.3.0.tgz(@mercuryworkshop/wisp-js@https://codeload.github.com/wonderhoy-labs/wisp-js/tar.gz/960fa6b995d3b210d77fd81e99435aa7cf555721))(@yume-chan/adb@2.6.4)(@yume-chan/stream-extra@2.6.1)
+        specifier: https://github.com/wonderhoy-labs/shiho/releases/download/v0.2.0/wonderhoy-labs-shiho-0.2.0.tgz
+        version: https://github.com/wonderhoy-labs/shiho/releases/download/v0.2.0/wonderhoy-labs-shiho-0.2.0.tgz(@wonderhoy-labs/shira@https://github.com/wonderhoy-labs/shira/releases/download/v0.4.0/wonderhoy-labs-shira-0.4.0.tgz(@mercuryworkshop/wisp-js@https://codeload.github.com/wonderhoy-labs/wisp-js/tar.gz/960fa6b995d3b210d77fd81e99435aa7cf555721))(@yume-chan/adb@2.6.4)(@yume-chan/stream-extra@2.6.1)
       '@wonderhoy-labs/shinonome':
         specifier: https://github.com/wonderhoy-labs/shinonome/releases/download/v0.5.1/wonderhoy-labs-shinonome-0.5.1.tgz
         version: https://github.com/wonderhoy-labs/shinonome/releases/download/v0.5.1/wonderhoy-labs-shinonome-0.5.1.tgz
       '@wonderhoy-labs/shira':
-        specifier: https://github.com/wonderhoy-labs/shira/releases/download/v0.3.0/wonderhoy-labs-shira-0.3.0.tgz
-        version: https://github.com/wonderhoy-labs/shira/releases/download/v0.3.0/wonderhoy-labs-shira-0.3.0.tgz(@mercuryworkshop/wisp-js@https://codeload.github.com/wonderhoy-labs/wisp-js/tar.gz/960fa6b995d3b210d77fd81e99435aa7cf555721)
+        specifier: https://github.com/wonderhoy-labs/shira/releases/download/v0.4.0/wonderhoy-labs-shira-0.4.0.tgz
+        version: https://github.com/wonderhoy-labs/shira/releases/download/v0.4.0/wonderhoy-labs-shira-0.4.0.tgz(@mercuryworkshop/wisp-js@https://codeload.github.com/wonderhoy-labs/wisp-js/tar.gz/960fa6b995d3b210d77fd81e99435aa7cf555721)
       '@xterm/addon-fit':
         specifier: 0.10.0
         version: 0.10.0(@xterm/xterm@5.5.0)
@@ -715,9 +715,9 @@ packages:
     resolution: {integrity: sha512-efeARmu3pNc2JZJnItnJ3zqKyfqB9r+0gI8A+EmOv+Tz4dEh73snG9LiWTMCbbGa2W90llsMoa5OAtXGyhqgHg==, tarball: https://github.com/wonderhoy-labs/minori/releases/download/v0.6.0/wonderhoy-labs-minori-0.6.0.tgz}
     version: 0.6.0
 
-  '@wonderhoy-labs/shiho@https://github.com/wonderhoy-labs/shiho/releases/download/v0.1.1/wonderhoy-labs-shiho-0.1.1.tgz':
-    resolution: {integrity: sha512-wPfVRkn2PoaPsr/yhcMIHXZZjFtFouhhR/rX1oOILzejGin3IZ8GYd/bhOABBv16KCRCqbsfq78j9oVn1pZb7Q==, tarball: https://github.com/wonderhoy-labs/shiho/releases/download/v0.1.1/wonderhoy-labs-shiho-0.1.1.tgz}
-    version: 0.1.1
+  '@wonderhoy-labs/shiho@https://github.com/wonderhoy-labs/shiho/releases/download/v0.2.0/wonderhoy-labs-shiho-0.2.0.tgz':
+    resolution: {integrity: sha512-oL5q9req+Q8y22grbie7OZZlSxK277SYHZRnzJLzHUkH70efuoBVwGcKDnCt/7y2DzDaJBZBE/5w7JZ/bbLfUg==, tarball: https://github.com/wonderhoy-labs/shiho/releases/download/v0.2.0/wonderhoy-labs-shiho-0.2.0.tgz}
+    version: 0.2.0
     peerDependencies:
       '@wonderhoy-labs/shira': '*'
       '@yume-chan/adb': '*'
@@ -727,9 +727,9 @@ packages:
     resolution: {integrity: sha512-WQde0wZ77OTn1L9Hxj/b91tXyz5A/b/z5OyGjltvQkuzHsZe559IWPAYq/wRn89IxMkrJhyY7cc0aiXGObybkg==, tarball: https://github.com/wonderhoy-labs/shinonome/releases/download/v0.5.1/wonderhoy-labs-shinonome-0.5.1.tgz}
     version: 0.5.1
 
-  '@wonderhoy-labs/shira@https://github.com/wonderhoy-labs/shira/releases/download/v0.3.0/wonderhoy-labs-shira-0.3.0.tgz':
-    resolution: {integrity: sha512-CGgVxNqnwwGF1Qhg1Cv7rgtu9RHtIvoqpsFZPPxMsQUeLEybbK8rcUp4KrH6bCYWocZZmXuhWWTgGC6PZKsXuw==, tarball: https://github.com/wonderhoy-labs/shira/releases/download/v0.3.0/wonderhoy-labs-shira-0.3.0.tgz}
-    version: 0.3.0
+  '@wonderhoy-labs/shira@https://github.com/wonderhoy-labs/shira/releases/download/v0.4.0/wonderhoy-labs-shira-0.4.0.tgz':
+    resolution: {integrity: sha512-F61K+QTzIuHLzCg6FiIc2VginikvDKM1hoHC3Li01ty0FlHvgOnN7XAv/6YVTmosIMfycgtv/bLowZFxwiHo1A==, tarball: https://github.com/wonderhoy-labs/shira/releases/download/v0.4.0/wonderhoy-labs-shira-0.4.0.tgz}
+    version: 0.4.0
     peerDependencies:
       '@mercuryworkshop/wisp-js': '*'
 
@@ -1412,17 +1412,17 @@ snapshots:
 
   '@wonderhoy-labs/minori@https://github.com/wonderhoy-labs/minori/releases/download/v0.6.0/wonderhoy-labs-minori-0.6.0.tgz': {}
 
-  '@wonderhoy-labs/shiho@https://github.com/wonderhoy-labs/shiho/releases/download/v0.1.1/wonderhoy-labs-shiho-0.1.1.tgz(@wonderhoy-labs/shira@https://github.com/wonderhoy-labs/shira/releases/download/v0.3.0/wonderhoy-labs-shira-0.3.0.tgz(@mercuryworkshop/wisp-js@0.5.3))(@yume-chan/adb@2.6.4)(@yume-chan/stream-extra@2.6.1)':
+  '@wonderhoy-labs/shiho@https://github.com/wonderhoy-labs/shiho/releases/download/v0.2.0/wonderhoy-labs-shiho-0.2.0.tgz(@wonderhoy-labs/shira@https://github.com/wonderhoy-labs/shira/releases/download/v0.4.0/wonderhoy-labs-shira-0.4.0.tgz(@mercuryworkshop/wisp-js@0.5.3))(@yume-chan/adb@2.6.4)(@yume-chan/stream-extra@2.6.1)':
     dependencies:
-      '@wonderhoy-labs/shira': https://github.com/wonderhoy-labs/shira/releases/download/v0.3.0/wonderhoy-labs-shira-0.3.0.tgz(@mercuryworkshop/wisp-js@0.5.3)
+      '@wonderhoy-labs/shira': https://github.com/wonderhoy-labs/shira/releases/download/v0.4.0/wonderhoy-labs-shira-0.4.0.tgz(@mercuryworkshop/wisp-js@0.5.3)
       '@yume-chan/adb': 2.6.4
       '@yume-chan/stream-extra': 2.6.1
       wbn: 0.0.10
       wbn-sign: 0.3.3
 
-  '@wonderhoy-labs/shiho@https://github.com/wonderhoy-labs/shiho/releases/download/v0.1.1/wonderhoy-labs-shiho-0.1.1.tgz(@wonderhoy-labs/shira@https://github.com/wonderhoy-labs/shira/releases/download/v0.3.0/wonderhoy-labs-shira-0.3.0.tgz(@mercuryworkshop/wisp-js@https://codeload.github.com/wonderhoy-labs/wisp-js/tar.gz/960fa6b995d3b210d77fd81e99435aa7cf555721))(@yume-chan/adb@2.6.4)(@yume-chan/stream-extra@2.6.1)':
+  '@wonderhoy-labs/shiho@https://github.com/wonderhoy-labs/shiho/releases/download/v0.2.0/wonderhoy-labs-shiho-0.2.0.tgz(@wonderhoy-labs/shira@https://github.com/wonderhoy-labs/shira/releases/download/v0.4.0/wonderhoy-labs-shira-0.4.0.tgz(@mercuryworkshop/wisp-js@https://codeload.github.com/wonderhoy-labs/wisp-js/tar.gz/960fa6b995d3b210d77fd81e99435aa7cf555721))(@yume-chan/adb@2.6.4)(@yume-chan/stream-extra@2.6.1)':
     dependencies:
-      '@wonderhoy-labs/shira': https://github.com/wonderhoy-labs/shira/releases/download/v0.3.0/wonderhoy-labs-shira-0.3.0.tgz(@mercuryworkshop/wisp-js@https://codeload.github.com/wonderhoy-labs/wisp-js/tar.gz/960fa6b995d3b210d77fd81e99435aa7cf555721)
+      '@wonderhoy-labs/shira': https://github.com/wonderhoy-labs/shira/releases/download/v0.4.0/wonderhoy-labs-shira-0.4.0.tgz(@mercuryworkshop/wisp-js@https://codeload.github.com/wonderhoy-labs/wisp-js/tar.gz/960fa6b995d3b210d77fd81e99435aa7cf555721)
       '@yume-chan/adb': 2.6.4
       '@yume-chan/stream-extra': 2.6.1
       wbn: 0.0.10
@@ -1433,13 +1433,13 @@ snapshots:
       '@yume-chan/adb': 2.6.4
       '@yume-chan/android-bin': 2.1.0
 
-  '@wonderhoy-labs/shira@https://github.com/wonderhoy-labs/shira/releases/download/v0.3.0/wonderhoy-labs-shira-0.3.0.tgz(@mercuryworkshop/wisp-js@0.5.3)':
+  '@wonderhoy-labs/shira@https://github.com/wonderhoy-labs/shira/releases/download/v0.4.0/wonderhoy-labs-shira-0.4.0.tgz(@mercuryworkshop/wisp-js@0.5.3)':
     dependencies:
       '@mercuryworkshop/wisp-js': 0.5.3
       '@yume-chan/adb': 2.6.4
       '@yume-chan/android-bin': 2.1.0
 
-  '@wonderhoy-labs/shira@https://github.com/wonderhoy-labs/shira/releases/download/v0.3.0/wonderhoy-labs-shira-0.3.0.tgz(@mercuryworkshop/wisp-js@https://codeload.github.com/wonderhoy-labs/wisp-js/tar.gz/960fa6b995d3b210d77fd81e99435aa7cf555721)':
+  '@wonderhoy-labs/shira@https://github.com/wonderhoy-labs/shira/releases/download/v0.4.0/wonderhoy-labs-shira-0.4.0.tgz(@mercuryworkshop/wisp-js@https://codeload.github.com/wonderhoy-labs/wisp-js/tar.gz/960fa6b995d3b210d77fd81e99435aa7cf555721)':
     dependencies:
       '@mercuryworkshop/wisp-js': https://codeload.github.com/wonderhoy-labs/wisp-js/tar.gz/960fa6b995d3b210d77fd81e99435aa7cf555721
       '@yume-chan/adb': 2.6.4

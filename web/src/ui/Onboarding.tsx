@@ -1,8 +1,6 @@
-import shiraApkUrl from "@wonderhoy-labs/shira/shira.apk?url";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { adbServerAvailable } from "../adb/dev-server";
 import { isUsbAvailable } from "../adb/usb";
-import { SHIRA_RELEASES_URL } from "../asahi/constants";
 import {
 	type AsahiState,
 	type Controller,
@@ -51,7 +49,7 @@ export function Onboarding({ controller, state }: Props) {
 					<StepItem
 						step="server"
 						state={state}
-						title={computerRouteAvailable ? "Choose the network" : "Pick a Wisp server"}
+						title="Choose the network"
 						summary={
 							state.serverLabel ? state.serverLabel[0]?.toUpperCase() + state.serverLabel.slice(1) : null
 						}
@@ -63,7 +61,9 @@ export function Onboarding({ controller, state }: Props) {
 						step="app"
 						state={state}
 						title="Install the app"
-						summary={state.app?.versionName ? `Shira ${state.app.versionName}` : null}
+						summary={
+							state.app?.versionName ? `${controller.networkApp.name} ${state.app.versionName}` : null
+						}
 						onChange={() => controller.goBack("app")}
 					>
 						<AppStep controller={controller} state={state} />
@@ -288,24 +288,28 @@ function AuthorizeStep({ controller, state }: Props) {
 }
 
 function ServerStep({ controller, state }: Props) {
-	if (!computerRouteAvailable) return <WispForm controller={controller} state={state} />;
 	return (
 		<>
-			<p>Your phone's traffic can go out through this computer's own connection, or through a Wisp server.</p>
+			<p>Your phone's traffic goes out through Shira and a Wisp server, or through Shiho and this computer.</p>
 			<fieldset className="route-options" aria-label="Network">
-				<RouteOption
-					selected={state.route === "computer"}
-					onSelect={() => controller.setRoute("computer")}
-					icon={<mdui-icon-computer />}
-					title="This computer"
-					text="Asahi opens your phone's connections itself, like a tether. No server, and nothing else to run."
-				/>
 				<RouteOption
 					selected={state.route === "wisp"}
 					onSelect={() => controller.setRoute("wisp")}
 					icon={<mdui-icon-dns />}
-					title="A Wisp server"
-					text="Your phone's traffic goes out from a server you choose, wherever it is."
+					title="Shira"
+					text="Through a Wisp server you choose, wherever it is."
+				/>
+				<RouteOption
+					selected={state.route === "computer"}
+					disabled={!computerRouteAvailable}
+					onSelect={() => controller.setRoute("computer")}
+					icon={<mdui-icon-computer />}
+					title="Shiho"
+					text={
+						computerRouteAvailable
+							? "Through this computer's own connection, like a tether. No server needed."
+							: "Through this computer's own connection. Install Asahi as an app (an Isolated Web App) to use it."
+					}
 				/>
 			</fieldset>
 			{state.route === "computer" ? (
@@ -323,20 +327,30 @@ function ServerStep({ controller, state }: Props) {
 
 function RouteOption({
 	selected,
+	disabled = false,
 	onSelect,
 	icon,
 	title,
 	text,
 }: {
 	selected: boolean;
+	disabled?: boolean;
 	onSelect: () => void;
 	icon: ReactNode;
 	title: string;
 	text: string;
 }) {
+	const classes = ["route-option", selected ? "route-option-selected" : "", disabled ? "route-option-disabled" : ""];
 	return (
-		<label className={`route-option${selected ? " route-option-selected" : ""}`}>
-			<input type="radio" name="route" className="route-option-input" checked={selected} onChange={onSelect} />
+		<label className={classes.filter(Boolean).join(" ")}>
+			<input
+				type="radio"
+				name="route"
+				className="route-option-input"
+				checked={selected}
+				disabled={disabled}
+				onChange={onSelect}
+			/>
 			<span className="route-option-icon">{icon}</span>
 			<span className="route-option-text">
 				<strong>{title}</strong>
@@ -448,6 +462,7 @@ function RecentServer({ url, onPick, onForget }: { url: string; onPick: () => vo
 
 function AppStep({ controller, state }: Props) {
 	const { app } = state;
+	const network = controller.networkApp;
 	const outdated = app?.installed && !state.appCurrent;
 	const verb = outdated ? "Update" : "Install";
 	if (state.installing) {
@@ -455,7 +470,7 @@ function AppStep({ controller, state }: Props) {
 			<>
 				<p>
 					{state.installProgress < 1
-						? `Sending Shira ${__SHIRA_VERSION__} to your phone.`
+						? `Sending ${network.name} ${network.version} to your phone.`
 						: "Your phone is installing it."}
 				</p>
 				<mdui-linear-progress value={state.installProgress < 1 ? state.installProgress : undefined} max={1} />
@@ -470,11 +485,15 @@ function AppStep({ controller, state }: Props) {
 					can check again whenever you're ready.
 				</p>
 				<div className="actions">
-					<mdui-button variant="tonal" href={shiraApkUrl} download={`shira-v${__SHIRA_VERSION__}.apk`}>
+					<mdui-button
+						variant="tonal"
+						href={network.apkUrl}
+						download={`${network.name.toLowerCase()}-v${network.version}.apk`}
+					>
 						<mdui-icon-download slot="icon" />
 						Download APK
 					</mdui-button>
-					<mdui-button variant="text" href={SHIRA_RELEASES_URL} target="_blank" rel="noreferrer">
+					<mdui-button variant="text" href={network.releasesUrl} target="_blank" rel="noreferrer">
 						All releases
 					</mdui-button>
 					<mdui-button variant="text" onClick={() => controller.cancelManualInstall()}>
@@ -488,10 +507,12 @@ function AppStep({ controller, state }: Props) {
 	return (
 		<>
 			<p>
-				Asahi's app is Shira, which gives your phone its connection. The desktop needs nothing installed. This
-				page only installs Shira if you ask.
+				{network.name === "Shira"
+					? "Through a Wisp server, your phone's connection comes from Shira's app."
+					: "Through this computer, your phone's connection comes from Shiho's app."}{" "}
+				The desktop needs nothing installed. This page only installs {network.name} if you ask.
 			</p>
-			<AppStatus state={state} />
+			<AppStatus state={state} name={network.name} version={network.version} />
 			<div className="actions">
 				{state.appCurrent ? (
 					<mdui-button variant="filled" onClick={() => controller.confirmApp()}>
@@ -521,7 +542,7 @@ function AppStep({ controller, state }: Props) {
 	);
 }
 
-function AppStatus({ state }: { state: AsahiState }) {
+function AppStatus({ state, name, version }: { state: AsahiState; name: string; version: string }) {
 	const { app } = state;
 	if (!app) return null;
 	if (state.appCurrent) {
@@ -529,7 +550,10 @@ function AppStatus({ state }: { state: AsahiState }) {
 			<div className="callout callout-good">
 				<mdui-icon-check-circle />
 				<span>
-					<strong>Shira {app.versionName}</strong> is installed on your phone.
+					<strong>
+						{name} {app.versionName}
+					</strong>{" "}
+					is installed on your phone.
 				</span>
 			</div>
 		);
@@ -539,7 +563,7 @@ function AppStatus({ state }: { state: AsahiState }) {
 			<div className="callout">
 				<mdui-icon-info />
 				<span>
-					Your phone has Shira {app.versionName}, and this page needs {__SHIRA_VERSION__} or newer.
+					Your phone has {name} {app.versionName}, and this page needs {version} or newer.
 				</span>
 			</div>
 		);
@@ -547,7 +571,7 @@ function AppStatus({ state }: { state: AsahiState }) {
 	return (
 		<div className="callout">
 			<mdui-icon-info />
-			<span>Shira isn't on your phone yet.</span>
+			<span>{name} isn't on your phone yet.</span>
 		</div>
 	);
 }

@@ -18,4 +18,7 @@ declare global {
 	/** The version of Shira's app that this page carries, from @wonderhoy-labs/shira. */
 	const __SHIRA_VERSION__: string;
 	const __SHIRA_VERSION_CODE__: number;
+	/** The version of Shiho's app that this page carries, from @wonderhoy-labs/shiho. */
+	const __SHIHO_VERSION__: string;
+	const __SHIHO_VERSION_CODE__: number;
 }

@@ -1,15 +1,15 @@
 import { Phone as DesktopPhone } from "@wonderhoy-labs/shinonome";
-import { Phone as NetworkPhone, type PhoneKind } from "@wonderhoy-labs/shira";
+import { type LinkApp, Phone as NetworkPhone, type PhoneKind } from "@wonderhoy-labs/shira";
 import type { Adb } from "@yume-chan/adb";
 
 export type { PhoneKind };
 
 /**
- * A phone reached through adb, seen two ways: through Shira's library for its network and the app that provides it,
- * and through Shinonome's for its desktop. Both talk over the same adb connection.
+ * A phone reached through adb, seen two ways: through Shira's library for its network and the app that provides it
+ * (Shira's or Shiho's), and through Shinonome's for its desktop. All of it talks over the same adb connection.
  */
 export class Phone {
-	readonly network: NetworkPhone;
+	network: NetworkPhone;
 	readonly desktop: DesktopPhone;
 
 	constructor(
@@ -19,6 +19,12 @@ export class Phone {
 	) {
 		this.network = new NetworkPhone(adb, name, kind);
 		this.desktop = new DesktopPhone(adb, name);
+	}
+
+	/** Talks to another app for the network, such as Shiho's instead of Shira's. */
+	switchNetworkApp(app: LinkApp) {
+		if (this.network.app.package !== app.package)
+			this.network = new NetworkPhone(this.adb, this.name, this.kind, app);
 	}
 
 	get disconnected(): Promise<unknown> {

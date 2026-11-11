@@ -20,10 +20,11 @@ keyboard. Meanwhile everything the phone does goes down the cable and out throug
 itself, so it works with the phone's Wi-Fi and mobile data turned off.
 
 There's no root on the phone, and no `adb`, drivers or anything else on the computer. Asahi is the Wonderhoy Labs projects'
-web front, built on their libraries: [Shira](https://github.com/wonderhoy-labs/shira)'s app gives the phone its network,
+web front, built on their libraries: [Shira](https://github.com/wonderhoy-labs/shira)'s or
+[Shiho](https://github.com/wonderhoy-labs/shiho)'s app gives the phone its network,
 [Shinonome](https://github.com/wonderhoy-labs/shinonome)'s server, which runs without installing anything, shows Android,
-Minori's helper shows its machines, and [Shiho](https://github.com/wonderhoy-labs/shiho)'s library opens the phone's
-connections from the computer when Asahi is installed as an Isolated Web App.
+and Minori's helper shows its machines. You choose Shira, through a Wisp server, or Shiho, through the computer itself
+once Asahi is installed as an Isolated Web App.
 
 ![Asahi in Chrome, showing a Pixel's desktop with two windows open](docs/screenshot.webp)
 
@@ -51,13 +52,17 @@ something.
 1. **Connect your phone.** Plug it in, click **Connect phone** and pick it from the browser's list.
 2. **Allow USB debugging.** Unlock the phone. If it asks whether to allow USB debugging, tick **Always allow from this
    computer** and tap **Allow**. A browser you've allowed before carries on by itself.
-3. **Pick a Wisp server,** like `wss://example.com/wisp/`. The page connects to it once to check, and asks for a login if the
-   server wants one. It remembers the last few you used.
-4. **Install the app.** Asahi's app on the phone is [Shira](https://github.com/wonderhoy-labs/shira), and the page carries it.
-   The page shows whether it's there and which version. **Install it for me** does it through USB debugging, **I'll install it
+3. **Choose the network.** **Shira** sends the phone's traffic through a Wisp server: enter one, like
+   `wss://example.com/wisp/`, and the page connects to it once to check, asks for a login if the server wants one, and
+   remembers the last few you used. **Shiho** sends it out of this computer, with no server, and only works in the
+   [installed app](#install-it-as-an-app). The page remembers your choice.
+4. **Install the app.** Each choice has its own app on the phone, [Shira](https://github.com/wonderhoy-labs/shira) or
+   [Shiho](https://github.com/wonderhoy-labs/shiho), and the page carries both. It shows whether yours is there and which
+   version. **Install it for me** does it through USB debugging, **I'll install it
    myself** gives you the APK and notices when it's on the phone, and **Check again** looks again. If it's already current,
-   **Continue** carries on. You can also get it from [Shira's releases](https://github.com/wonderhoy-labs/shira/releases). The
-   desktop needs nothing installed.
+   **Continue** carries on. You can also get them from
+   [Shira's](https://github.com/wonderhoy-labs/shira/releases) or [Shiho's](https://github.com/wonderhoy-labs/shiho/releases)
+   releases. The desktop needs nothing installed.
 5. **Choose and launch.** Pick what to show from six cards (Android desktop, Android screen, Android app, Linux app, Linux
    desktop and Linux console), and the app or machine if it needs one. Cards for what your phone can't do say why, such as a
    phone without desktop windows or without Airi or Minori. The page remembers your choice for next time. **Launch** turns on
@@ -87,15 +92,15 @@ Asahi installs two ways, and the page works the same in both.
 **As a PWA**, from the site: Chrome's install button in the address bar, or its menu's **Cast, save and share → Install
 page as app**. It opens in its own window and keeps working without a connection to the site, from what it saved.
 
-**As an Isolated Web App**, which can do something the site can't: open your phone's connections itself, through
-[Shiho](https://github.com/wonderhoy-labs/shiho)'s library and Chrome's Direct Sockets, so you don't need a Wisp server.
+**As an Isolated Web App**, which can do something the site can't: use [Shiho](https://github.com/wonderhoy-labs/shiho),
+which opens your phone's connections from the computer with Chrome's Direct Sockets, so you don't need a Wisp server.
 It can also reach the `adb` server on your computer, which lists emulators and lets you leave `adb` running.
 
 1. In Chrome, open `chrome://flags/#enable-isolated-web-app-dev-mode`, set it to Enabled and relaunch.
 2. Download `asahi.swbn` from the [latest release](https://github.com/wonderhoy-labs/asahi/releases/latest).
 3. Open `chrome://web-app-internals`, and under Isolated Web Apps choose **Install IWA from Signed Web Bundle**. Pick the
    file.
-4. Open Asahi from your apps. At step 3, **Choose the network**, pick **This computer**. Chrome asks once whether Asahi may
+4. Open Asahi from your apps. At step 3, **Choose the network**, pick **Shiho**, and install Shiho's app at step 4. Chrome asks once whether Asahi may
    access other apps and services on this device; that's the `adb` server, so allow it.
 
 Every release is signed with the same key, so the app is always
@@ -207,6 +212,14 @@ enter it again after a reload. Key-based logins aren't supported.
 
 Everything here is on a Pixel 10 Pro running Android 17 (build `CP3A.260905.009`, not rooted), with a Mac, except where
 it says an emulator.
+
+**0.6.0's choice of Shira or Shiho, on the Android 17 emulator** with Wi-Fi and data off:
+
+- As an Isolated Web App with **Shiho** chosen, on a phone without Shiho's app: step 4 offered Shiho 0.2.0 and installed
+  it, the Android screen launched, Android's VPN was `com.wonderhoylabs.shiho`, and Shiho's app said "Online".
+- On the site through the development server, **Shira** was chosen by default and the Shiho card was shown but disabled,
+  saying it needs the installed app. With the development Wisp server, step 4 found Shira 0.4.0, the Android screen
+  launched, and Android's VPN was `com.wonderhoylabs.shira`.
 
 **0.5.0 as an Isolated Web App, on an Android 17 emulator** (`Minori_Test_API_37`), from a signed `asahi.swbn` installed in
 Chrome for Testing 156 with `--install-isolated-web-app-from-file` and IWA developer mode. The page listed the emulator
@@ -344,12 +357,12 @@ commands that install and start things. Each socket is its project's, and descri
 
 ### The network
 
-This is Shira, through its library and its app. Normal apps can't use a phone's USB port as a network, but they can be a VPN,
+This is Shira or Shiho, through their libraries and apps. Normal apps can't use a phone's USB port as a network, but they can be a VPN,
 which receives every packet the phone sends. Shira's app does that and ends the connections right there, in a small TCP stack written in Kotlin that acts as the
 other end of every connection and turns each one into a Wisp stream. The page hands those to
-[wisp-js](https://github.com/MercuryWorkshop/wisp-js), which keeps the connection to your server. In the Isolated Web App,
-with **This computer** chosen, Shiho's library takes them instead and opens a TCP or UDP socket for each one on this
-computer, with Chrome's Direct Sockets.
+[wisp-js](https://github.com/MercuryWorkshop/wisp-js), which keeps the connection to your server. With **Shiho** chosen, in the
+Isolated Web App, the phone runs Shiho's app instead, which is Shira's VPN service under Shiho's name and socket, and
+Shiho's library opens a TCP or UDP socket for each connection on this computer, with Chrome's Direct Sockets.
 
 The app has no INTERNET permission, so its only way out is the cable. The VPN only exists while the page is attached and
 connected to a Wisp server. Android is told the VPN is a real network, so apps don't think they're offline when there's nothing

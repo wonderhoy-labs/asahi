@@ -23,13 +23,13 @@ import {
 	type WispCredentials,
 	WispError,
 } from "@wonderhoy-labs/shira";
-import shiraApkUrl from "@wonderhoy-labs/shira/shira.apk?url";
 import type { AdbSocket } from "@yume-chan/adb";
 import type { AdbDaemonWebUsbDevice } from "@yume-chan/adb-daemon-webusb";
 import type { Phone, PhoneKind } from "../adb/phone";
 import { authorizeUsb, claimUsb, knownPhone, pickPhone, UsbBusyError, type UsbConnection } from "../adb/usb";
 import { airiKnowsMachines, hasAiri, type LinuxApp, linuxAppIcon, listLinuxApps, machineSource } from "./airi";
 import { hasMinori, listMachines, type Machine, MachineView, type MachineViewState, readyForAiri } from "./minori";
+import { NETWORK_APPS, type NetworkApp, type NetworkRoute } from "./network-apps";
 import {
 	availability,
 	type Capabilities,
@@ -43,8 +43,7 @@ import {
 	shinonomeMode,
 } from "./sources";
 
-/** Where the phone's traffic goes. "computer" only exists in the Isolated Web App. */
-export type NetworkRoute = "wisp" | "computer";
+export type { NetworkRoute };
 
 /** Whether this page can open connections itself, which only the installed Isolated Web App can. */
 export const computerRouteAvailable = isDirectSocketsAvailable();
@@ -66,7 +65,7 @@ export interface AsahiState {
 	phoneKind: PhoneKind | null;
 
 	/**
-	 * Where the phone's traffic goes: a Wisp server through Shira, or, installed as an Isolated Web App, out of this
+	 * Where the phone's traffic goes: a Wisp server through Shira's app, or, installed as an Isolated Web App, out of this
 	 * computer itself through Shiho's Direct Sockets. Remembered.
 	 */
 	route: NetworkRoute;
@@ -80,7 +79,7 @@ export interface AsahiState {
 	recentServers: string[];
 
 	app: AppInfo | null;
-	/** True if the version of Shira's app on the phone is what this site carries, or newer. */
+	/** True if the version of the route's app on the phone is what this site carries, or newer. */
 	appCurrent: boolean;
 	checkingApp: boolean;
 	installing: boolean;
@@ -376,12 +375,12 @@ export class Controller {
 	/** The device being authorized, so that waiting for the phone's OK can be called off. */
 	private pendingDevice: AdbDaemonWebUsbDevice | null = null;
 	private usingUsb = false;
-	private shiraApk: Uint8Array<ArrayBuffer> | null = null;
+	private readonly networkApks = new Map<string, Uint8Array<ArrayBuffer>>();
 	private shinonomeApk: Uint8Array<ArrayBuffer> | null = null;
 	/** Bumped to cancel whatever setup job is going on. Each one checks it's still current. */
 	private job = 0;
 
-	// The network, through Shira's app
+	// The network, through Shira's or Shiho's app
 	private link: ShiraLink | null = null;
 	private serverUrl: string | null = null;
 	private credentials: WispCredentials | null = null;
@@ -524,6 +523,7 @@ export class Controller {
 	}
 
 	private async attach(phone: Phone) {
+		phone.switchNetworkApp(this.networkApp.link);
 		this.phone = phone;
 		if (this.state.step !== "live") {
 			// Another phone, or the same one again, may have different apps and machines.
@@ -627,7 +627,11 @@ export class Controller {
 	setRoute(route: NetworkRoute) {
 		if (route === "computer" && !computerRouteAvailable) return;
 		store(STORED_ROUTE, route);
+		const changed = route !== this.state.route;
 		this.update({ route, error: null });
+		this.phone?.switchNetworkApp(NETWORK_APPS[route].link);
+		// The other route has another app, which the next step looks at afresh.
+		if (changed) this.update({ app: null, appCurrent: false, offerUninstall: false });
 	}
 
 	/** Goes on with this computer's own connection, through Shiho. */
@@ -714,8 +718,13 @@ export class Controller {
 
 	// Step 4: the app. Nothing's installed unless someone asks.
 
+	/** The app on the phone for the chosen route: Shira's for a Wisp server, Shiho's for this computer. */
+	get networkApp(): NetworkApp {
+		return NETWORK_APPS[this.state.route];
+	}
+
 	private appIsCurrent(app: AppInfo) {
-		return app.installed && (app.versionCode ?? 0) >= __SHIRA_VERSION_CODE__;
+		return app.installed && (app.versionCode ?? 0) >= this.networkApp.versionCode;
 	}
 
 	private async refreshApp(): Promise<AppInfo> {
@@ -736,10 +745,12 @@ export class Controller {
 		}
 	}
 
-	/** Shira's app, which this site carries. */
-	private async fetchShiraApk(): Promise<Uint8Array<ArrayBuffer>> {
-		this.shiraApk ??= await fetchBytes(shiraApkUrl);
-		return this.shiraApk;
+	/** The route's app, which this site carries. */
+	private async fetchNetworkApk(): Promise<Uint8Array<ArrayBuffer>> {
+		const { apkUrl } = this.networkApp;
+		const apk = this.networkApks.get(apkUrl) ?? (await fetchBytes(apkUrl));
+		this.networkApks.set(apkUrl, apk);
+		return apk;
 	}
 
 	/** Shinonome's app, which holds the desktop server. It runs from a copy, so it isn't installed. */
@@ -759,7 +770,7 @@ export class Controller {
 			notice: null,
 		});
 		try {
-			await this.requirePhone().network.install(await this.fetchShiraApk(), (installProgress) =>
+			await this.requirePhone().network.install(await this.fetchNetworkApk(), (installProgress) =>
 				this.update({ installProgress }),
 			);
 			await this.refreshApp();
@@ -770,7 +781,7 @@ export class Controller {
 				installing: false,
 				offerUninstall: uninstall,
 				error: uninstall
-					? "The copy of Shira on your phone was signed with a different key, or is newer, so Android won't replace it. Remove it to carry on."
+					? `The copy of ${this.networkApp.name} on your phone was signed with a different key, or is newer, so Android won't replace it. Remove it to carry on.`
 					: `Couldn't install the app: ${message(error)}`,
 			});
 		}
@@ -915,7 +926,7 @@ export class Controller {
 	// The network
 
 	/**
-	 * Gets from here to connected through Shira's app, and resolves the first time the VPN's up. It carries on in the
+	 * Gets from here to connected through the route's app, and resolves the first time the VPN's up. It carries on in the
 	 * background after that, through a lost server. [startApp] is false when going back to an app that's already
 	 * running, because anything else would turn the network back on after someone turned it off.
 	 */
@@ -977,7 +988,7 @@ export class Controller {
 		}
 	}
 
-	/** Lets go of the network link without turning Shira off on the phone. */
+	/** Lets go of the network link without turning the app off on the phone. */
 	private stopNetwork() {
 		const link = this.link;
 		this.link = null;
