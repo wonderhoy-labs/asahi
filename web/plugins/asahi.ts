@@ -153,7 +153,7 @@ function serveWisp(httpServer: Server | null, withAdb: boolean) {
 }
 
 /**
- * Tells the page its version and the version of Shira's app it carries. The apps themselves come with the Shira and
+ * Tells the page its version and the versions of Shira's and Shiho's apps it carries. The apps themselves come with the Shira and
  * Shinonome libraries.
  *
  * During development this also runs what production gets from elsewhere: a Wisp server for the page to
@@ -167,6 +167,12 @@ export function asahi(): Plugin {
 		}
 	).version;
 	const [major = 0, minor = 0, patch = 0] = shira.split(".").map(Number);
+	const shiho = (
+		JSON.parse(readFileSync(repo("web/node_modules/@wonderhoy-labs/shiho/package.json"), "utf8")) as {
+			version: string;
+		}
+	).version;
+	const shihoCode = shiho.split(".").map(Number);
 	const brand = (JSON.parse(readFileSync(repo("package.json"), "utf8")) as { wonderhoy: Brand }).wonderhoy;
 
 	return {
@@ -177,6 +183,8 @@ export function asahi(): Plugin {
 				__ASAHI_VERSION__: JSON.stringify(version),
 				__SHIRA_VERSION__: JSON.stringify(shira),
 				__SHIRA_VERSION_CODE__: major * 10_000 + minor * 100 + patch,
+				__SHIHO_VERSION__: JSON.stringify(shiho),
+				__SHIHO_VERSION_CODE__: (shihoCode[0] ?? 0) * 10_000 + (shihoCode[1] ?? 0) * 100 + (shihoCode[2] ?? 0),
 			},
 		}),
 

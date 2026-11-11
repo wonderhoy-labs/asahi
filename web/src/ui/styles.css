@@ -449,6 +449,15 @@
 	background: rgb(var(--mdui-color-secondary-container));
 }
 
+.route-option-disabled {
+	cursor: default;
+	opacity: 0.6;
+}
+
+.route-option-disabled:hover {
+	background: rgb(var(--mdui-color-surface-container-low));
+}
+
 .route-option-icon {
 	display: flex;
 	color: rgb(var(--mdui-color-primary));
@@ -1122,6 +1131,15 @@ p.motd {
 
 .route-option-selected:hover {
 	background: rgb(var(--mdui-color-secondary-container));
+}
+
+.route-option-disabled {
+	cursor: default;
+	opacity: 0.6;
+}
+
+.route-option-disabled:hover {
+	background: rgb(var(--mdui-color-surface-container-low));
 }
 
 .route-option-icon {

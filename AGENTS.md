@@ -59,11 +59,12 @@ cd web && pnpm test && pnpm build
   The same build is also an Isolated Web App, `asahi.swbn`, signed by `tools/bundle.ts` through Shiho's library with
   `~/.config/wonderhoy-labs/asahi/iwa-key.pem` and the `ASAHI_IWA_KEY` secret. Never replace that key: it's the app's
   address, `isolated-app://ullmoikobfu5xdsfnxfr2cz24euvvqxfdqpyfrggaeqsbsnql2mqaaic/`.
-- **The network route** is Wisp by default. Only the Isolated Web App offers "This computer", which is Shiho's
-  `directSocketsUpstream` given to Shira's `ShiraLink`, and lists phones from the `adb` server through Shiho's
-  `adbServerClient`. Remembered in `localStorage['asahi.route']`. Production builds, the IWA included, ignore
-  `asahi.dev.desktop-args`, so don't run IWA sessions on the PIN-locked Pixel. Test the IWA on the emulator, with
-  Shiho's AGENTS.md notes on Chrome for Testing.
+- **The network is Shira or Shiho**, each with its own app on the phone (`web/src/asahi/network-apps.ts`). Shira, through
+  a Wisp server, is the default and the only one on the site. Shiho needs the Isolated Web App: Shiho's
+  `directSocketsUpstream` given to Shira's `ShiraLink`, with `SHIHO_APP` as the `Phone`'s app; the IWA also lists phones
+  from the `adb` server through Shiho's `adbServerClient`. Remembered in `localStorage['asahi.route']`. Production
+  builds, the IWA included, ignore `asahi.dev.desktop-args`, so don't run IWA sessions on the PIN-locked Pixel. Test the
+  IWA on the emulator, with Shiho's AGENTS.md notes on Chrome for Testing.
 
 ## Exceptions to the guideline
 
