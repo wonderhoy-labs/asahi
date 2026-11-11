@@ -183,6 +183,8 @@ enter it again after a reload. Key-based logins aren't supported.
 Everything here is on a Pixel 10 Pro running Android 17 (build `CP3A.260905.009`, not rooted), with a Mac, except where
 it says an emulator.
 
+**0.4.1's chooser, on the Pixel through the development server.** The Linux app list for an Xfce machine in Minori showed each app's own icon from Airi, and the Android and Linux headings are in normal case. Firefox ESR from that machine opened alone in the tab, drew and answered clicks.
+
 **Asahi 0.4.1's reading of Airi 0.4.0's `source` column:** the unit tests, and the parser run on the 21 rows Airi 0.4.0
 gave over `adb` on the Pixel, with Android's terminal and Minori's Xfce VM both running, which split into the terminal's
 10 apps and Xfce's 11. The page itself wasn't opened for this change.
