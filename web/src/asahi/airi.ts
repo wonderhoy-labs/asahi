@@ -12,6 +12,16 @@ export interface LinuxApp {
 	name: string;
 	/** Whether Airi put it on the phone's launcher. */
 	onLauncher: boolean;
+	/**
+	 * Which Linux it's in: `terminal` for Android's terminal, or `minori:<machine id>` for one of Minori's machines. Airi
+	 * before 0.4.0 has no such column, and only knew the terminal.
+	 */
+	source: string;
+}
+
+/** The source of a Minori machine's apps in Airi's rows. */
+export function machineSource(vm: string): string {
+	return `minori:${vm}`;
 }
 
 /** Whether Airi is on the phone. Asking doesn't start it. */
@@ -20,16 +30,33 @@ export async function hasAiri(phone: Phone): Promise<boolean> {
 }
 
 /**
- * The rows `content query` prints for Airi's provider. Each row is `desktop_id`, `on_launcher` and `name`, in that order,
- * so the name, which can hold anything, is the rest of the line.
+ * The rows `content query` prints for Airi's provider. Each row is `desktop_id`, `on_launcher`, `name` and, from Airi 0.4.0,
+ * `source`, in that order. The name can hold anything, so it's everything up to the last `, source=`, or the rest of the
+ * line from an older Airi.
  */
 export function parseLinuxApps(output: string): LinuxApp[] {
 	const apps: LinuxApp[] = [];
 	for (const line of output.split("\n")) {
-		const match = /^Row: \d+ desktop_id=(.+?), on_launcher=([01]), name=(.*)$/.exec(line.trimEnd());
-		if (match) apps.push({ desktopId: match[1], onLauncher: match[2] === "1", name: match[3] });
+		const match =
+			/^Row: \d+ desktop_id=(.+?), on_launcher=([01]), name=(.*?)(?:, source=(terminal|minori:[^\s,]+))?$/.exec(
+				line.trimEnd(),
+			);
+		if (match) {
+			apps.push({
+				desktopId: match[1],
+				onLauncher: match[2] === "1",
+				name: match[3],
+				source: match[4] ?? "terminal",
+			});
+		}
 	}
 	return apps;
+}
+
+/** Whether Airi lists and opens Minori's machines' apps, which it does from 0.4.0. */
+export async function airiKnowsMachines(phone: Phone): Promise<boolean> {
+	const version = /versionName=(\d+)\.(\d+)/.exec(await phone.shell(`dumpsys package ${AIRI_PACKAGE}`));
+	return version !== null && (Number(version[1]) > 0 || Number(version[2]) >= 4);
 }
 
 /** The Linux apps Airi can open now. Empty while Linux isn't running. */

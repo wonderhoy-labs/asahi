@@ -27,7 +27,7 @@ import type { AdbSocket } from "@yume-chan/adb";
 import type { AdbDaemonWebUsbDevice } from "@yume-chan/adb-daemon-webusb";
 import type { Phone, PhoneKind } from "../adb/phone";
 import { authorizeUsb, claimUsb, knownPhone, pickPhone, UsbBusyError, type UsbConnection } from "../adb/usb";
-import { hasAiri, type LinuxApp, listLinuxApps } from "./airi";
+import { airiKnowsMachines, hasAiri, type LinuxApp, listLinuxApps, machineSource } from "./airi";
 import { hasMinori, listMachines, type Machine, MachineView, type MachineViewState, readyForAiri } from "./minori";
 import {
 	availability,
@@ -183,6 +183,9 @@ const RELEASE_DELAY_MILLIS = 500;
 const USB_RESET_MILLIS = 1_500;
 // Minori answers in a second once it's awake. An old or stuck one never does.
 const MACHINES_TIMEOUT_MILLIS = 20_000;
+/** How long a machine that has just started gets for Airi's agent in it to answer. */
+const AIRI_AGENT_WAIT_MILLIS = 30_000;
+const AIRI_AGENT_POLL_MILLIS = 2_000;
 
 function stored(key: string): string {
 	try {
@@ -1243,8 +1246,20 @@ export class Controller {
 			}
 			if (!live()) return;
 			this.update({ linuxAppsStatus: "Asking Airi for the apps." });
-			const apps = await listLinuxApps(phone);
-			if (!live()) return;
+			if (from.kind === "machine" && !(await airiKnowsMachines(phone))) {
+				throw new Error("This Airi only lists Android's terminal. Update Airi to 0.4.0 or later.");
+			}
+			const source = from.kind === "machine" ? machineSource(from.vm) : "terminal";
+			let apps: LinuxApp[] = [];
+			// A machine that has just started may not have Airi's agent answering yet, so ask again for a while.
+			const deadline = Date.now() + (from.kind === "machine" ? AIRI_AGENT_WAIT_MILLIS : 0);
+			for (;;) {
+				const rows = await listLinuxApps(phone);
+				if (!live()) return;
+				apps = rows.filter((app) => app.source === source);
+				if (apps.length > 0 || Date.now() > deadline) break;
+				await sleep(AIRI_AGENT_POLL_MILLIS);
+			}
 			this.update({
 				linuxApps: apps.sort((a, b) => a.name.localeCompare(b.name)),
 				linuxAppsStatus: null,
