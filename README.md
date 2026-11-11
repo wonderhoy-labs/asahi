@@ -180,8 +180,15 @@ make a desktop, and the page said so. **Pixel screen** showed the emulator's own
 **One Linux app** listed two apps from Airi 0.3.0, which was pointed at a stand-in for its Linux agent, since the emulator
 can't run Linux; picking one restarted Shinonome with just that app, and the tab showed Airi opening it, filling the tab.
 Switching back and forth between the screen and an app worked each time. A Minori machine's desktop and console were
-tried earlier the same way. Not yet on the phone: the screen and one app through this page. Shinonome's own tests showed
-both on the Pixel, including GNOME Calculator from the Linux terminal through Airi.
+tried earlier the same way.
+
+**The source menu on the Pixel,** in Chrome through the development server's page, with Shinonome 0.4.0, Airi 0.3.0 and
+Minori 0.2.0 release builds. **Pixel desktop** came up as before. **Pixel screen** showed the phone's own screen, with
+Shira's connected card on it. **One Linux app** listed the ten apps Airi found in the Linux terminal; picking Calculator
+showed GNOME Calculator alone in the tab at up to 59 frames per second, and clicking 7 × 6 = gave 42. Switching back to
+**Pixel desktop** worked. With an Xfce machine made from Minori's store on the phone, the menu listed **Xfce: desktop**
+and **Xfce: console**: the desktop showed Xfce with its Applications menu opening on a click, and the console showed the
+machine's login prompt. Not tried: a Minori machine's one app, which needs Airi set up inside that machine.
 
 **Shira 0.2.1's fix for ending a session, on an Android 17 emulator.** In Chrome 156 through the development server's
 link to `adb` and its Wisp server: **Install it for me** put Shira 0.2.1 on the emulator, **Launch** brought its VPN up, a
