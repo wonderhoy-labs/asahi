@@ -19,6 +19,7 @@ import "@mdui/icons/check.js";
 import "@mdui/icons/check-circle.js";
 import "@mdui/icons/close.js";
 import "@mdui/icons/computer.js";
+import "@mdui/icons/content-copy.js";
 import "@mdui/icons/delete-outline.js";
 import "@mdui/icons/desktop-access-disabled.js";
 import "@mdui/icons/desktop-windows.js";

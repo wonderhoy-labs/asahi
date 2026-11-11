@@ -625,8 +625,8 @@ export class Controller {
 
 	/** Chooses between a Wisp server and this computer's own connection, which only the installed app has. */
 	setRoute(route: NetworkRoute) {
-		if (route === "computer" && !computerRouteAvailable) return;
-		store(STORED_ROUTE, route);
+		// On the site, Shiho can be picked to see how to set it up, but isn't remembered, because it can't run here.
+		if (route === "wisp" || computerRouteAvailable) store(STORED_ROUTE, route);
 		const changed = route !== this.state.route;
 		this.update({ route, error: null });
 		this.phone?.switchNetworkApp(NETWORK_APPS[route].link);
