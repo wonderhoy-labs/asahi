@@ -219,14 +219,17 @@ importers:
         specifier: 3.14.26
         version: 3.14.26(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@wonderhoy-labs/minori':
-        specifier: https://github.com/wonderhoy-labs/minori/releases/download/v0.2.0/wonderhoy-labs-minori-0.2.0.tgz
-        version: https://github.com/wonderhoy-labs/minori/releases/download/v0.2.0/wonderhoy-labs-minori-0.2.0.tgz
+        specifier: https://github.com/wonderhoy-labs/minori/releases/download/v0.5.0/wonderhoy-labs-minori-0.5.0.tgz
+        version: https://github.com/wonderhoy-labs/minori/releases/download/v0.5.0/wonderhoy-labs-minori-0.5.0.tgz
       '@wonderhoy-labs/shinonome':
         specifier: https://github.com/wonderhoy-labs/shinonome/releases/download/v0.5.1/wonderhoy-labs-shinonome-0.5.1.tgz
         version: https://github.com/wonderhoy-labs/shinonome/releases/download/v0.5.1/wonderhoy-labs-shinonome-0.5.1.tgz
       '@wonderhoy-labs/shira':
         specifier: https://github.com/wonderhoy-labs/shira/releases/download/v0.2.2/wonderhoy-labs-shira-0.2.2.tgz
         version: https://github.com/wonderhoy-labs/shira/releases/download/v0.2.2/wonderhoy-labs-shira-0.2.2.tgz(@mercuryworkshop/wisp-js@https://codeload.github.com/wonderhoy-labs/wisp-js/tar.gz/960fa6b995d3b210d77fd81e99435aa7cf555721)
+      '@xterm/addon-fit':
+        specifier: 0.10.0
+        version: 0.10.0(@xterm/xterm@5.5.0)
       '@xterm/xterm':
         specifier: 5.5.0
         version: 5.5.0
@@ -689,9 +692,9 @@ packages:
   '@vitest/spy@5.0.5':
     resolution: {integrity: sha512-lwJRExuH417257Q5wv9QYugN9IMJkoxcrKrYxGPQkBzl7wlNpTUxD/5yNX4ESKVUIShKPgkGchYPFMWOOk0wzw==}
 
-  '@wonderhoy-labs/minori@https://github.com/wonderhoy-labs/minori/releases/download/v0.2.0/wonderhoy-labs-minori-0.2.0.tgz':
-    resolution: {integrity: sha512-YXdJ+2zmQsNjwITndgk6k/Xz864Yfk1QgBOwuBawqtQ+1j0HUG7LW0/W/3srh8omn2s1PplCNw/tprsXJHIDyQ==, tarball: https://github.com/wonderhoy-labs/minori/releases/download/v0.2.0/wonderhoy-labs-minori-0.2.0.tgz}
-    version: 0.2.0
+  '@wonderhoy-labs/minori@https://github.com/wonderhoy-labs/minori/releases/download/v0.5.0/wonderhoy-labs-minori-0.5.0.tgz':
+    resolution: {integrity: sha512-i/1xGWmmp9AT/8Umiv0gX+Hb63kixmEzhAPGxOnIMYwF0ZWlb8TanWa14q3TrEzVYVIx5INvQimiJu2PRHB/cg==, tarball: https://github.com/wonderhoy-labs/minori/releases/download/v0.5.0/wonderhoy-labs-minori-0.5.0.tgz}
+    version: 0.5.0
 
   '@wonderhoy-labs/shinonome@https://github.com/wonderhoy-labs/shinonome/releases/download/v0.5.1/wonderhoy-labs-shinonome-0.5.1.tgz':
     resolution: {integrity: sha512-WQde0wZ77OTn1L9Hxj/b91tXyz5A/b/z5OyGjltvQkuzHsZe559IWPAYq/wRn89IxMkrJhyY7cc0aiXGObybkg==, tarball: https://github.com/wonderhoy-labs/shinonome/releases/download/v0.5.1/wonderhoy-labs-shinonome-0.5.1.tgz}
@@ -702,6 +705,11 @@ packages:
     version: 0.2.2
     peerDependencies:
       '@mercuryworkshop/wisp-js': '*'
+
+  '@xterm/addon-fit@0.10.0':
+    resolution: {integrity: sha512-UFYkDm4HUahf2lnEyHvio51TNGiLK66mqP2JoATy7hRZeXaGMRDr00JiSF7m63vR5WKATF605yEggJKsw0JpMQ==}
+    peerDependencies:
+      '@xterm/xterm': ^5.0.0
 
   '@xterm/xterm@5.5.0':
     resolution: {integrity: sha512-hqJHYaQb5OptNunnyAnkHyM8aCjZ1MEIDTQu1iIbbTD/xops91NB5yq1ZK/dC2JDbVWtF23zUtl9JE2NqwT87A==}
@@ -1319,7 +1327,7 @@ snapshots:
 
   '@vitest/spy@5.0.5': {}
 
-  '@wonderhoy-labs/minori@https://github.com/wonderhoy-labs/minori/releases/download/v0.2.0/wonderhoy-labs-minori-0.2.0.tgz': {}
+  '@wonderhoy-labs/minori@https://github.com/wonderhoy-labs/minori/releases/download/v0.5.0/wonderhoy-labs-minori-0.5.0.tgz': {}
 
   '@wonderhoy-labs/shinonome@https://github.com/wonderhoy-labs/shinonome/releases/download/v0.5.1/wonderhoy-labs-shinonome-0.5.1.tgz':
     dependencies:
@@ -1331,6 +1339,10 @@ snapshots:
       '@mercuryworkshop/wisp-js': https://codeload.github.com/wonderhoy-labs/wisp-js/tar.gz/960fa6b995d3b210d77fd81e99435aa7cf555721
       '@yume-chan/adb': 2.6.4
       '@yume-chan/android-bin': 2.1.0
+
+  '@xterm/addon-fit@0.10.0(@xterm/xterm@5.5.0)':
+    dependencies:
+      '@xterm/xterm': 5.5.0
 
   '@xterm/xterm@5.5.0': {}
 

@@ -9,6 +9,7 @@ import {
 	VncClient,
 	WAKE_COMMAND,
 } from "@wonderhoy-labs/minori";
+import { FitAddon } from "@xterm/addon-fit";
 import { Terminal } from "@xterm/xterm";
 import type { Phone } from "../adb/phone";
 import type { MachineSource } from "./sources";
@@ -109,6 +110,7 @@ export class MachineView {
 	private client: VncClient | null = null;
 	private stream: Duplex | null = null;
 	private terminal: Terminal | null = null;
+	private stopResizing: (() => void) | null = null;
 	private unbind: (() => void) | null = null;
 
 	constructor(
@@ -165,7 +167,14 @@ export class MachineView {
 			cursorBlink: true,
 		});
 		this.terminal = terminal;
+		// The console fills the tab, and the machine is told its size, so lines wrap where they end here.
+		const fit = new FitAddon();
+		terminal.loadAddon(fit);
 		terminal.open(element);
+		fit.fit();
+		const resizes = new ResizeObserver(() => fit.fit());
+		resizes.observe(element);
+		this.stopResizing = () => resizes.disconnect();
 		try {
 			this.events.onState("starting", null);
 			const minori = await awake(this.phone);
@@ -177,7 +186,9 @@ export class MachineView {
 				() => this.alive,
 			);
 			if (!this.alive) return;
-			const stream = await minori.console(vm);
+			const stream = await minori.console(vm, { rows: terminal.rows, cols: terminal.cols });
+			// Minori before 0.5.0 doesn't know resize, and a serial console has no size, so a refusal changes nothing.
+			terminal.onResize(({ rows, cols }) => void minori.resizeConsole(vm, { rows, cols }).catch(() => undefined));
 			this.stream = stream;
 			const writer = stream.writable.getWriter();
 			const encoder = new TextEncoder();
@@ -203,6 +214,7 @@ export class MachineView {
 		this.unbind?.();
 		void this.client?.close();
 		void Promise.resolve(this.stream?.close()).catch(() => undefined);
+		this.stopResizing?.();
 		this.terminal?.dispose();
 	}
 }
