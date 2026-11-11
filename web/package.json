@@ -27,7 +27,7 @@
 		"@mdui/icons": "1.0.4",
 		"@mercuryworkshop/wisp-js": "github:wonderhoy-labs/wisp-js#960fa6b995d3b210d77fd81e99435aa7cf555721",
 		"@tanstack/react-virtual": "3.14.26",
-		"@wonderhoy-labs/minori": "https://github.com/wonderhoy-labs/minori/releases/download/v0.5.0/wonderhoy-labs-minori-0.5.0.tgz",
+		"@wonderhoy-labs/minori": "https://github.com/wonderhoy-labs/minori/releases/download/v0.6.0/wonderhoy-labs-minori-0.6.0.tgz",
 		"@wonderhoy-labs/shinonome": "https://github.com/wonderhoy-labs/shinonome/releases/download/v0.5.1/wonderhoy-labs-shinonome-0.5.1.tgz",
 		"@wonderhoy-labs/shira": "https://github.com/wonderhoy-labs/shira/releases/download/v0.2.2/wonderhoy-labs-shira-0.2.2.tgz",
 		"@xterm/addon-fit": "0.10.0",

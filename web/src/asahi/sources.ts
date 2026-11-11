@@ -166,8 +166,8 @@ export function availability(setup: Setup, phone: Capabilities): Availability {
 		}
 		case "linux-desktop":
 			return machines(
-				(machine) => machine.agent,
-				"None of Minori's machines has its guest agent, which a desktop needs. Its console still works.",
+				hasDesktop,
+				"None of Minori's machines has a desktop. Get one from Minori's store, or add one to a Termux machine on its page in Minori.",
 			);
 		case "linux-console":
 			return machines(() => true, "");
@@ -176,7 +176,15 @@ export function availability(setup: Setup, phone: Capabilities): Availability {
 
 /** The machines a Linux desktop or console can come from. */
 export function machinesFor(setup: "linux-desktop" | "linux-console", machines: Machine[]): Machine[] {
-	return setup === "linux-desktop" ? machines.filter((machine) => machine.agent) : machines;
+	return setup === "linux-desktop" ? machines.filter(hasDesktop) : machines;
+}
+
+/**
+ * Whether a machine has a desktop to show. Minori 0.6.0 and later say so, including for a Termux machine it added one
+ * to; before that, only machines with Minori's guest agent could have one.
+ */
+export function hasDesktop(machine: Pick<Machine, "agent" | "desktop">): boolean {
+	return machine.desktop ?? machine.agent;
 }
 
 /** A machine's name as the menus show it. Termux userlands aren't VMs, and Minori labels them Termux everywhere. */
