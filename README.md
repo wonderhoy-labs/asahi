@@ -183,6 +183,10 @@ enter it again after a reload. Key-based logins aren't supported.
 Everything here is on a Pixel 10 Pro running Android 17 (build `CP3A.260905.009`, not rooted), with a Mac, except where
 it says an emulator.
 
+**Asahi 0.4.1's reading of Airi 0.4.0's `source` column:** the unit tests, and the parser run on the 21 rows Airi 0.4.0
+gave over `adb` on the Pixel, with Android's terminal and Minori's Xfce VM both running, which split into the terminal's
+10 apps and Xfce's 11. The page itself wasn't opened for this change.
+
 **Asahi 0.4.0's choice of what to show and one Android app,** through the development server's page and its link to `adb`,
 with Shinonome 0.5.0's library built from its branch, and again with the released 0.5.0 and Shira 0.2.2, where the
 Pixel listed 125 apps and showed Clock alone. These ran in the Claude app's browser pane, because the Chrome
