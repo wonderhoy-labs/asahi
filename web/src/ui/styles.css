@@ -449,13 +449,41 @@
 	background: rgb(var(--mdui-color-secondary-container));
 }
 
-.route-option-disabled {
-	cursor: default;
-	opacity: 0.6;
+/* How to set Shiho up, on the site. */
+.shiho-setup > p {
+	margin: 0 0 12px;
 }
 
-.route-option-disabled:hover {
-	background: rgb(var(--mdui-color-surface-container-low));
+.setup-steps {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	margin: 0 0 12px;
+	padding-left: 20px;
+}
+
+.setup-step-text {
+	display: block;
+}
+
+.setup-step-action {
+	margin-top: 8px;
+}
+
+.copy-address {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px 8px;
+	margin-top: 6px;
+}
+
+.copy-address code {
+	padding: 4px 8px;
+	border-radius: 8px;
+	background: rgb(var(--mdui-color-surface-container-highest));
+	font-size: 13px;
+	word-break: break-all;
 }
 
 .route-option-icon {
@@ -1133,13 +1161,41 @@ p.motd {
 	background: rgb(var(--mdui-color-secondary-container));
 }
 
-.route-option-disabled {
-	cursor: default;
-	opacity: 0.6;
+/* How to set Shiho up, on the site. */
+.shiho-setup > p {
+	margin: 0 0 12px;
 }
 
-.route-option-disabled:hover {
-	background: rgb(var(--mdui-color-surface-container-low));
+.setup-steps {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	margin: 0 0 12px;
+	padding-left: 20px;
+}
+
+.setup-step-text {
+	display: block;
+}
+
+.setup-step-action {
+	margin-top: 8px;
+}
+
+.copy-address {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px 8px;
+	margin-top: 6px;
+}
+
+.copy-address code {
+	padding: 4px 8px;
+	border-radius: 8px;
+	background: rgb(var(--mdui-color-surface-container-highest));
+	font-size: 13px;
+	word-break: break-all;
 }
 
 .route-option-icon {

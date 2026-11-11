@@ -301,56 +301,142 @@ function ServerStep({ controller, state }: Props) {
 				/>
 				<RouteOption
 					selected={state.route === "computer"}
-					disabled={!computerRouteAvailable}
 					onSelect={() => controller.setRoute("computer")}
 					icon={<mdui-icon-computer />}
 					title="Shiho"
 					text={
 						computerRouteAvailable
 							? "Through this computer's own connection, like a tether. No server needed."
-							: "Through this computer's own connection. Install Asahi as an app (an Isolated Web App) to use it."
+							: "Through this computer's own connection. Needs Asahi installed as an app, which takes a minute."
 					}
 				/>
 			</fieldset>
-			{state.route === "computer" ? (
-				<div className="actions">
-					<mdui-button variant="filled" onClick={() => controller.chooseComputer()}>
-						Continue
-					</mdui-button>
-				</div>
-			) : (
+			{state.route === "wisp" ? (
 				<WispForm controller={controller} state={state} />
+			) : computerRouteAvailable ? (
+				<>
+					<p>Next, Asahi puts Shiho's app on your phone, which hands its connections to this computer.</p>
+					<div className="actions">
+						<mdui-button variant="filled" onClick={() => controller.chooseComputer()}>
+							Continue
+						</mdui-button>
+					</div>
+				</>
+			) : (
+				<ShihoSetup />
 			)}
 		</>
 	);
 }
 
+/** Where the installed app comes from: the latest release's signed web bundle. */
+const IWA_BUNDLE_URL = "https://github.com/wonderhoy-labs/asahi/releases/latest/download/asahi.swbn";
+const IWA_FLAG = "chrome://flags/#enable-isolated-web-app-dev-mode";
+const IWA_INSTALLER = "chrome://web-app-internals";
+
+/** Chrome and the other Chromium browsers on a computer, which are the ones that can install Isolated Web Apps. */
+function canInstallIsolatedApps(): boolean {
+	const data = (navigator as Navigator & { userAgentData?: { brands: { brand: string }[]; mobile: boolean } })
+		.userAgentData;
+	return !!data && !data.mobile && data.brands.some((entry) => entry.brand === "Chromium");
+}
+
+/**
+ * Shown on the site when someone picks Shiho: why it can't run in a normal tab, and how to install Asahi as an
+ * Isolated Web App, which can. Chrome won't let a page open chrome:// addresses, so those are copied instead.
+ */
+function ShihoSetup() {
+	if (!canInstallIsolatedApps()) {
+		return (
+			<div className="callout">
+				<mdui-icon-info />
+				<span>
+					Shiho needs Asahi installed as an app, and only Chrome or another Chromium browser on a computer can
+					install it. Open this page there, or use Shira for now.
+				</span>
+			</div>
+		);
+	}
+	return (
+		<div className="shiho-setup">
+			<p>
+				A normal tab can't open network connections itself, so Shiho only works in Asahi installed as an app (an
+				Isolated Web App). Set it up once:
+			</p>
+			<ol className="setup-steps">
+				<li>
+					<span className="setup-step-text">
+						Turn on Chrome's developer mode for these apps: paste this into the address bar, set it to{" "}
+						<strong>Enabled</strong> and relaunch Chrome.
+					</span>
+					<CopyAddress address={IWA_FLAG} />
+				</li>
+				<li>
+					<span className="setup-step-text">Download Asahi's app.</span>
+					<div className="actions setup-step-action">
+						<mdui-button variant="tonal" href={IWA_BUNDLE_URL}>
+							<mdui-icon-download slot="icon" />
+							Download asahi.swbn
+						</mdui-button>
+					</div>
+				</li>
+				<li>
+					<span className="setup-step-text">
+						Open this address, choose <strong>Install IWA from Signed Web Bundle</strong> under Isolated Web
+						Apps, and pick the file.
+					</span>
+					<CopyAddress address={IWA_INSTALLER} />
+				</li>
+				<li>
+					<span className="setup-step-text">
+						Open Asahi from your apps and choose Shiho here. Asahi then puts Shiho's app on your phone, and
+						Chrome asks once whether Asahi may reach the <code>adb</code> server on this computer.
+					</span>
+				</li>
+			</ol>
+			<p className="note">Until then, Shira works here with a Wisp server.</p>
+		</div>
+	);
+}
+
+/** A chrome:// address, which pages can't link to, with a button that copies it. */
+function CopyAddress({ address }: { address: string }) {
+	const [copied, setCopied] = useState(false);
+	return (
+		<div className="copy-address">
+			<code>{address}</code>
+			<mdui-button
+				variant="text"
+				onClick={() =>
+					void navigator.clipboard.writeText(address).then(
+						() => setCopied(true),
+						() => setCopied(false),
+					)
+				}
+			>
+				<mdui-icon-content-copy slot="icon" />
+				{copied ? "Copied" : "Copy"}
+			</mdui-button>
+		</div>
+	);
+}
+
 function RouteOption({
 	selected,
-	disabled = false,
 	onSelect,
 	icon,
 	title,
 	text,
 }: {
 	selected: boolean;
-	disabled?: boolean;
 	onSelect: () => void;
 	icon: ReactNode;
 	title: string;
 	text: string;
 }) {
-	const classes = ["route-option", selected ? "route-option-selected" : "", disabled ? "route-option-disabled" : ""];
 	return (
-		<label className={classes.filter(Boolean).join(" ")}>
-			<input
-				type="radio"
-				name="route"
-				className="route-option-input"
-				checked={selected}
-				disabled={disabled}
-				onChange={onSelect}
-			/>
+		<label className={`route-option${selected ? " route-option-selected" : ""}`}>
+			<input type="radio" name="route" className="route-option-input" checked={selected} onChange={onSelect} />
 			<span className="route-option-icon">{icon}</span>
 			<span className="route-option-text">
 				<strong>{title}</strong>

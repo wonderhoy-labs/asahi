@@ -213,6 +213,8 @@ enter it again after a reload. Key-based logins aren't supported.
 Everything here is on a Pixel 10 Pro running Android 17 (build `CP3A.260905.009`, not rooted), with a Mac, except where
 it says an emulator.
 
+**0.6.1's Shiho help, in the development server's page in a normal tab** (the Claude app's Chromium pane, with the Android 17 emulator). Shiho can be picked now; picking it showed why a normal tab can't use it and the four steps to install Asahi as an Isolated Web App, with copy buttons for the two `chrome://` addresses and a download for `asahi.swbn`. Picking Shira again brought back the Wisp server form. Not checked in the installed app this time, where Shiho goes straight on as before.
+
 **0.6.0's choice of Shira or Shiho, on the Android 17 emulator** with Wi-Fi and data off:
 
 - As an Isolated Web App with **Shiho** chosen, on a phone without Shiho's app: step 4 offered Shiho 0.2.0 and installed
