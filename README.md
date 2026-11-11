@@ -184,7 +184,8 @@ Everything here is on a Pixel 10 Pro running Android 17 (build `CP3A.260905.009`
 it says an emulator.
 
 **Asahi 0.4.0's choice of what to show and one Android app,** through the development server's page and its link to `adb`,
-with Shinonome 0.5.0's library built from its branch. These ran in the Claude app's browser pane, because the Chrome
+with Shinonome 0.5.0's library built from its branch, and again with the released 0.5.0 and Shira 0.2.2, where the
+Pixel listed 125 apps and showed Clock alone. These ran in the Claude app's browser pane, because the Chrome
 extension wasn't connected; sessions were left by reloading the page, since ending one there has crashed the pane before.
 
 - On an Android 17 emulator, which can't make a desktop: the **Android desktop** card was greyed out with Android's reason
