@@ -1,10 +1,11 @@
 import { type SoundState, sharpSuggestion, toggleFullscreen } from "@wonderhoy-labs/shinonome";
 import { formatRate, type LogTotals } from "@wonderhoy-labs/shira";
 import { useEffect, useRef, useState } from "react";
-import { airiLink, type LinuxApp, machineAppLink } from "../asahi/airi";
-import type { AppsFrom, AsahiState, Controller } from "../asahi/controller";
+import type { AppsFrom as AppsFromPlace, AsahiState, Controller } from "../asahi/controller";
 import type { Machine } from "../asahi/minori";
-import { type MachineSource, type Source, sourceLabel } from "../asahi/sources";
+import { type MachineSource, SETUP_TITLES, sourceLabel } from "../asahi/sources";
+import { AppsFrom } from "./AppPicker";
+import { SourceIcon } from "./Icons";
 import { NetworkPanel, useLogSnapshot } from "./NetworkPanel";
 
 interface Props {
@@ -297,25 +298,12 @@ function StatusChip({
 	);
 }
 
-function SourceIcon({ source }: { source: Source }) {
-	switch (source.kind) {
-		case "pixel":
-			return <mdui-icon-smartphone slot="icon" />;
-		case "screen":
-			return <mdui-icon-stay-current-portrait slot="icon" />;
-		case "app":
-			return <mdui-icon-web-asset slot="icon" />;
-		case "machine":
-			return source.view === "desktop" ? <mdui-icon-computer slot="icon" /> : <mdui-icon-terminal slot="icon" />;
-	}
-}
-
 /**
- * Picks what the tab shows: the Pixel's desktop or its own screen, one Linux app through Airi, or a Minori machine's
- * desktop or console. Airi's and Minori's entries only show when they're on the phone.
+ * Switches what the tab shows: Android's desktop or screen, one Android app, one Linux app through Airi, or a Minori
+ * machine's desktop or console. Airi's and Minori's entries only show when they're on the phone.
  */
 function SourceMenu({ controller, state }: Props) {
-	const { source, machines, machinesProblem, minoriInstalled, airiInstalled } = state;
+	const { source, machines, machinesProblem, minoriInstalled, airiInstalled, desktopSupportProblem } = state;
 	const pick = (machine: Machine, view: MachineSource["view"]) =>
 		controller.chooseSource({ kind: "machine", vm: machine.id, name: machine.name, view });
 	let items: React.ReactNode = null;
@@ -367,18 +355,26 @@ function SourceMenu({ controller, state }: Props) {
 					if (minoriInstalled) void controller.loadMachines();
 				}}
 			>
-				<SourceIcon source={source} />
+				<SourceIcon source={source} slot="icon" />
 				{sourceLabel(source)}
 				<mdui-icon-arrow-drop-down slot="end-icon" />
 			</mdui-button>
 			<mdui-menu>
-				<mdui-menu-item onClick={() => controller.chooseSource({ kind: "pixel" })}>
-					<mdui-icon-smartphone slot="icon" />
-					Pixel desktop
+				<mdui-menu-item
+					disabled={desktopSupportProblem !== null}
+					title={desktopSupportProblem ?? undefined}
+					onClick={() => controller.chooseSource({ kind: "desktop" })}
+				>
+					<mdui-icon-desktop-windows slot="icon" />
+					{SETUP_TITLES["android-desktop"]}
 				</mdui-menu-item>
 				<mdui-menu-item onClick={() => controller.chooseSource({ kind: "screen" })}>
 					<mdui-icon-stay-current-portrait slot="icon" />
-					Pixel screen
+					{SETUP_TITLES["android-screen"]}
+				</mdui-menu-item>
+				<mdui-menu-item onClick={() => void controller.openApps({ kind: "android" })}>
+					<mdui-icon-android slot="icon" />
+					One Android app
 				</mdui-menu-item>
 				{airiInstalled ? (
 					<mdui-menu-item onClick={() => void controller.openApps({ kind: "terminal" })}>
@@ -394,10 +390,10 @@ function SourceMenu({ controller, state }: Props) {
 }
 
 /**
- * Lists Linux apps from Android's terminal or a Minori machine, through Airi. Picking one shows it alone, filling the tab,
- * through Shinonome; Airi opens it, and Minori starts its machine first.
+ * Lists Android's apps, or Linux apps from Android's terminal or a Minori machine through Airi. Picking one shows it
+ * alone, filling the tab, through Shinonome.
  */
-function AppsDialog({ controller, state, from }: Props & { from: AppsFrom }) {
+function AppsDialog({ controller, state, from }: Props & { from: AppsFromPlace }) {
 	const dialog = useRef<HTMLElement>(null);
 	useEffect(() => {
 		// React can't listen for this event by name, because of how it spells custom element events.
@@ -406,41 +402,27 @@ function AppsDialog({ controller, state, from }: Props & { from: AppsFrom }) {
 		element?.addEventListener("closed", onClosed);
 		return () => element?.removeEventListener("closed", onClosed);
 	}, [controller]);
-	const { linuxApps, linuxAppsStatus, linuxAppsProblem } = state;
-	const open = (app: LinuxApp) =>
-		controller.chooseSource({
-			kind: "app",
-			app: from.kind === "machine" ? machineAppLink(from.vm, app.desktopId) : airiLink(app.desktopId),
-			name: app.name,
-		});
 	return (
 		<mdui-dialog
 			ref={dialog as never}
 			open
 			close-on-esc
 			close-on-overlay-click
-			headline={from.kind === "machine" ? `Apps in ${from.name}` : "Linux apps"}
-			description="Shown alone, filling the tab. Airi opens it on the phone."
+			className="apps-dialog"
+			headline={
+				from.kind === "machine"
+					? `Apps in ${from.name}`
+					: from.kind === "android"
+						? "Android apps"
+						: "Linux apps"
+			}
+			description={
+				from.kind === "android"
+					? "Shown alone, filling the tab, on a display of its own."
+					: "Shown alone, filling the tab. Airi opens it on the phone."
+			}
 		>
-			{linuxApps && linuxApps.length > 0 ? (
-				<div className="apps-list">
-					{linuxApps.map((app) => (
-						<button key={app.desktopId} type="button" className="apps-item" onClick={() => open(app)}>
-							<span className="apps-name">{app.name}</span>
-							<span className="apps-id">{app.desktopId}</span>
-						</button>
-					))}
-				</div>
-			) : (
-				<p className="apps-note">
-					{linuxAppsProblem ?? linuxAppsStatus ?? (linuxApps ? "No apps." : "Looking for apps.")}
-				</p>
-			)}
-			{linuxAppsProblem ? (
-				<mdui-button slot="action" variant="text" onClick={() => void controller.openApps(from)}>
-					Try again
-				</mdui-button>
-			) : null}
+			<AppsFrom controller={controller} state={state} from={from} />
 			<mdui-button slot="action" variant="text" onClick={() => controller.closeApps()}>
 				Close
 			</mdui-button>
@@ -483,8 +465,8 @@ function MachineScreen({ controller, state, source }: Props & { source: MachineS
 						<mdui-button variant="filled" onClick={() => controller.retryMachine()}>
 							Open it again
 						</mdui-button>
-						<mdui-button variant="text" onClick={() => controller.chooseSource({ kind: "pixel" })}>
-							Back to the Pixel
+						<mdui-button variant="text" onClick={() => controller.chooseSource({ kind: "screen" })}>
+							Show the phone's screen
 						</mdui-button>
 					</div>
 				</div>
@@ -523,7 +505,7 @@ function desktopLight({ desktop }: AsahiState): Light {
 
 function desktopLabel({ desktop, source }: AsahiState): string {
 	// What Shinonome is showing: the desktop, the phone's screen, or one app.
-	const what = source.kind === "screen" ? "Screen" : source.kind === "app" ? "App" : "Desktop";
+	const what = source.kind === "screen" ? "Screen" : source.kind === "desktop" ? "Desktop" : "App";
 	switch (desktop) {
 		case "up":
 			return what;
@@ -531,7 +513,7 @@ function desktopLabel({ desktop, source }: AsahiState): string {
 		case "connecting":
 			return `${what} starting`;
 		case "unavailable":
-			return source.kind === "pixel" ? "No desktop" : `No ${what.toLowerCase()}`;
+			return source.kind === "desktop" ? "No desktop" : `No ${what.toLowerCase()}`;
 		case "phone-lost":
 			return `${what} waiting`;
 		default:

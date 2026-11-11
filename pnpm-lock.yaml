@@ -222,8 +222,8 @@ importers:
         specifier: https://github.com/wonderhoy-labs/minori/releases/download/v0.2.0/wonderhoy-labs-minori-0.2.0.tgz
         version: https://github.com/wonderhoy-labs/minori/releases/download/v0.2.0/wonderhoy-labs-minori-0.2.0.tgz
       '@wonderhoy-labs/shinonome':
-        specifier: https://github.com/wonderhoy-labs/shinonome/releases/download/v0.4.0/wonderhoy-labs-shinonome-0.4.0.tgz
-        version: https://github.com/wonderhoy-labs/shinonome/releases/download/v0.4.0/wonderhoy-labs-shinonome-0.4.0.tgz
+        specifier: link:../../shinonome-apps/packages/shinonome
+        version: link:../../shinonome-apps/packages/shinonome
       '@wonderhoy-labs/shira':
         specifier: https://github.com/wonderhoy-labs/shira/releases/download/v0.2.1/wonderhoy-labs-shira-0.2.1.tgz
         version: https://github.com/wonderhoy-labs/shira/releases/download/v0.2.1/wonderhoy-labs-shira-0.2.1.tgz(@mercuryworkshop/wisp-js@https://codeload.github.com/wonderhoy-labs/wisp-js/tar.gz/960fa6b995d3b210d77fd81e99435aa7cf555721)
@@ -692,10 +692,6 @@ packages:
   '@wonderhoy-labs/minori@https://github.com/wonderhoy-labs/minori/releases/download/v0.2.0/wonderhoy-labs-minori-0.2.0.tgz':
     resolution: {integrity: sha512-YXdJ+2zmQsNjwITndgk6k/Xz864Yfk1QgBOwuBawqtQ+1j0HUG7LW0/W/3srh8omn2s1PplCNw/tprsXJHIDyQ==, tarball: https://github.com/wonderhoy-labs/minori/releases/download/v0.2.0/wonderhoy-labs-minori-0.2.0.tgz}
     version: 0.2.0
-
-  '@wonderhoy-labs/shinonome@https://github.com/wonderhoy-labs/shinonome/releases/download/v0.4.0/wonderhoy-labs-shinonome-0.4.0.tgz':
-    resolution: {integrity: sha512-yBVu7vnFcDPYtLESFw2C1J/tp+e/TIxd0lz30lXldge/Ymn1wdmxgecc+tW8gEIizZHRiBvhpVD18i66ukmpTw==, tarball: https://github.com/wonderhoy-labs/shinonome/releases/download/v0.4.0/wonderhoy-labs-shinonome-0.4.0.tgz}
-    version: 0.4.0
 
   '@wonderhoy-labs/shira@https://github.com/wonderhoy-labs/shira/releases/download/v0.2.1/wonderhoy-labs-shira-0.2.1.tgz':
     resolution: {integrity: sha512-lxI5QZ78/r841CQiIo/xdADF7cOh+6OVqpJVzVakIPqiPXO53+G6sIaMi/EFIEPZFPnpJ+615TowQcZWRDLHEA==, tarball: https://github.com/wonderhoy-labs/shira/releases/download/v0.2.1/wonderhoy-labs-shira-0.2.1.tgz}
@@ -1320,11 +1316,6 @@ snapshots:
   '@vitest/spy@5.0.5': {}
 
   '@wonderhoy-labs/minori@https://github.com/wonderhoy-labs/minori/releases/download/v0.2.0/wonderhoy-labs-minori-0.2.0.tgz': {}
-
-  '@wonderhoy-labs/shinonome@https://github.com/wonderhoy-labs/shinonome/releases/download/v0.4.0/wonderhoy-labs-shinonome-0.4.0.tgz':
-    dependencies:
-      '@yume-chan/adb': 2.6.4
-      '@yume-chan/android-bin': 2.1.0
 
   '@wonderhoy-labs/shira@https://github.com/wonderhoy-labs/shira/releases/download/v0.2.1/wonderhoy-labs-shira-0.2.1.tgz(@mercuryworkshop/wisp-js@https://codeload.github.com/wonderhoy-labs/wisp-js/tar.gz/960fa6b995d3b210d77fd81e99435aa7cf555721)':
     dependencies:

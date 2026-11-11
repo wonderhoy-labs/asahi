@@ -2,6 +2,7 @@ import {
 	DesktopSession,
 	type DesktopStatus,
 	exposeDebugApi,
+	type LaunchableApp,
 	modeArgs,
 	runDesktopLink,
 	type SessionStats,
@@ -28,7 +29,18 @@ import type { Phone, PhoneKind } from "../adb/phone";
 import { authorizeUsb, claimUsb, knownPhone, pickPhone, UsbBusyError, type UsbConnection } from "../adb/usb";
 import { hasAiri, type LinuxApp, listLinuxApps } from "./airi";
 import { hasMinori, listMachines, type Machine, MachineView, type MachineViewState, readyForAiri } from "./minori";
-import { type Source, shinonomeMode } from "./sources";
+import {
+	availability,
+	type Capabilities,
+	DEFAULT_SOURCE,
+	machinesFor,
+	parseSource,
+	type Setup,
+	type Source,
+	sameSource,
+	setupOf,
+	shinonomeMode,
+} from "./sources";
 
 /** The onboarding, in order, and then the session itself. */
 export type Step = "usb" | "authorize" | "server" | "app" | "launch" | "live";
@@ -89,12 +101,20 @@ export interface AsahiState {
 	/** What happened to the last one. */
 	transferNote: string | null;
 
-	/** What the tab shows: the Pixel's desktop, unless someone picked something else. */
+	/** What the tab shows, or will once launched: the last thing picked, or Android's desktop. Remembered. */
 	source: Source;
+	/** The kind of thing picked in the onboarding. It can be ahead of the source until the app or machine is picked. */
+	setup: Setup;
+	/** Whether the phone has said if it can make a desktop, and why not if it can't. Asked before Launch. */
+	desktopChecked: boolean;
+	desktopSupportProblem: string | null;
 	/** Whether Airi is on the phone, so its Linux apps can be offered one at a time. */
 	airiInstalled: boolean;
-	/** The "One Linux app" dialog: whose apps it lists, or null when it's closed. */
+	/** Which apps are being listed to pick from, in the onboarding or the live view's dialog, or null for none. */
 	appsFrom: AppsFrom | null;
+	/** The phone's launcher apps, listed once per connection, and why not if they couldn't be. */
+	androidApps: LaunchableApp[] | null;
+	androidAppsProblem: string | null;
 	/** Those apps, once listed, and what's happening while they aren't. */
 	linuxApps: LinuxApp[] | null;
 	linuxAppsStatus: string | null;
@@ -116,8 +136,28 @@ export interface AsahiState {
 	notice: string | null;
 }
 
-/** Where a list of Linux apps comes from: Android's own terminal, or a Minori machine with Airi set up in it. */
-export type AppsFrom = { kind: "terminal" } | { kind: "machine"; vm: string; name: string };
+/**
+ * Where a list of apps comes from: Android's launcher, Android's own terminal through Airi, or a Minori machine with
+ * Airi set up in it.
+ */
+export type AppsFrom = { kind: "android" } | { kind: "terminal" } | { kind: "machine"; vm: string; name: string };
+
+/** What the onboarding knows about what this phone can show. */
+export function capabilities(state: AsahiState): Capabilities {
+	return {
+		desktopChecked: state.desktopChecked,
+		desktopProblem: state.desktopSupportProblem,
+		airiInstalled: state.airiInstalled,
+		minoriInstalled: state.minoriInstalled,
+		machines: state.machines,
+		machinesProblem: state.machinesProblem,
+	};
+}
+
+/** Whether Launch can go: something whole is picked, and the phone can show it. */
+export function readyToLaunch(state: AsahiState): boolean {
+	return setupOf(state.source) === state.setup && availability(state.setup, capabilities(state)).ok;
+}
 
 const STORED_SERVER = "asahi.server";
 const STORED_SERVERS = "asahi.servers";
@@ -126,6 +166,8 @@ const STORED_USERNAME = "asahi.username";
 const STORED_SOUND = "asahi.sound";
 /** "on" gives the desktop the phone's density. */
 const STORED_SHARP = "asahi.sharp";
+/** The last thing shown, as JSON, to offer first next time. */
+const STORED_SOURCE = "asahi.source";
 /** Development only: extra options for the desktop server, such as --screen-on. */
 const STORED_DEV_DESKTOP_ARGS = "asahi.dev.desktop-args";
 const MAX_RECENT_SERVERS = 4;
@@ -139,6 +181,8 @@ const LINK_SETTLE_MILLIS = 300;
 const RELEASE_DELAY_MILLIS = 500;
 // How long a phone takes to reset its USB after a browser holding it goes away without saying so.
 const USB_RESET_MILLIS = 1_500;
+// Minori answers in a second once it's awake. An old or stuck one never does.
+const MACHINES_TIMEOUT_MILLIS = 20_000;
 
 function stored(key: string): string {
 	try {
@@ -167,6 +211,10 @@ function storedServers(): string[] {
 	}
 }
 
+function storedSource(): Source {
+	return parseSource(stored(STORED_SOURCE)) ?? DEFAULT_SOURCE;
+}
+
 function defaultServer(): string {
 	if (import.meta.env.DEV) {
 		const scheme = location.protocol === "https:" ? "wss:" : "ws:";
@@ -181,6 +229,23 @@ function devDesktopArgs(): string[] {
 }
 
 const sleep = (millis: number) => new Promise<void>((resolve) => setTimeout(resolve, millis));
+
+/** Rejects with the message if the promise takes longer than that. */
+function withTimeout<T>(promise: Promise<T>, millis: number, problem: string): Promise<T> {
+	return new Promise<T>((resolve, reject) => {
+		const timer = setTimeout(() => reject(new Error(problem)), millis);
+		promise.then(
+			(value) => {
+				clearTimeout(timer);
+				resolve(value);
+			},
+			(error: unknown) => {
+				clearTimeout(timer);
+				reject(error);
+			},
+		);
+	});
+}
 
 function message(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
@@ -258,10 +323,15 @@ export class Controller {
 		sharpDeclined: new Set(),
 		transfer: null,
 		transferNote: null,
-		source: { kind: "pixel" },
+		source: storedSource(),
+		setup: setupOf(storedSource()),
+		desktopChecked: false,
+		desktopSupportProblem: null,
 		minoriInstalled: false,
 		airiInstalled: false,
 		appsFrom: null,
+		androidApps: null,
+		androidAppsProblem: null,
 		linuxApps: null,
 		linuxAppsStatus: null,
 		linuxAppsProblem: null,
@@ -292,7 +362,6 @@ export class Controller {
 
 	// The desktop
 	private session: DesktopSession | null = null;
-	private canvas: HTMLCanvasElement | null = null;
 	private desktopSocket: AdbSocket | null = null;
 	private desktopJob = 0;
 	private transferNoteTimer: ReturnType<typeof setTimeout> | undefined;
@@ -428,15 +497,29 @@ export class Controller {
 
 	private async attach(phone: Phone) {
 		this.phone = phone;
+		if (this.state.step !== "live") {
+			// Another phone, or the same one again, may have different apps and machines.
+			this.update({
+				androidApps: null,
+				androidAppsProblem: null,
+				machines: null,
+				machinesProblem: null,
+				appsFrom: null,
+			});
+		}
 		const lost = () => this.onPhoneLost(phone);
 		phone.disconnected.then(lost, lost);
 		this.update({ phone: phone.name, phoneKind: phone.kind, busy: null, error: null });
 		void hasMinori(phone).then(
 			(minoriInstalled) => {
-				if (this.phone === phone) this.update({ minoriInstalled });
+				if (this.phone !== phone) return;
+				this.update({ minoriInstalled });
+				// Already choosing what to show, so its machines are wanted now.
+				if (minoriInstalled && this.state.step === "launch") void this.loadMachines();
 			},
 			(error: unknown) => console.info("couldn't look for Minori", error),
 		);
+		void this.checkDesktopSupport(phone);
 		void hasAiri(phone).then(
 			(airiInstalled) => {
 				if (this.phone === phone) this.update({ airiInstalled });
@@ -685,19 +768,81 @@ export class Controller {
 	confirmApp() {
 		if (!this.state.appCurrent) return;
 		this.update({ step: "launch", error: null, notice: null });
+		if (this.state.minoriInstalled && this.state.machines === null) void this.loadMachines();
+		this.loadForSetup(this.state.setup);
 	}
 
-	// Step 5: launch
+	// Step 5: what to show, then launch
 
-	/** Turns on the network, starts the desktop, and goes to it. */
+	/** Asks the phone, before Launch, whether it can make a desktop, so the onboarding only offers what works. */
+	private async checkDesktopSupport(phone: Phone) {
+		this.update({ desktopChecked: false, desktopSupportProblem: null });
+		let problem: string | null;
+		try {
+			problem = await phone.desktop.desktopProblem(await this.fetchShinonomeApk());
+		} catch (error) {
+			// Launch finds out anyway, and says why.
+			console.info("couldn't ask whether the phone can make a desktop", error);
+			problem = null;
+		}
+		if (this.phone !== phone) return;
+		this.update({ desktopChecked: true, desktopSupportProblem: problem });
+		// The phone's screen works everywhere, so it's offered instead, without forgetting the desktop was wanted.
+		if (problem && this.state.source.kind === "desktop" && this.state.step !== "live") {
+			this.update({ source: { kind: "screen" }, setup: "android-screen" });
+		}
+	}
+
+	/** Picks a kind of thing to show, in the onboarding, and lists what there is to pick from for it. */
+	pickSetup(setup: Setup) {
+		if (this.state.launchStage) return;
+		this.update({ setup, error: null });
+		if (setup === "android-desktop") this.chooseSource({ kind: "desktop" });
+		else if (setup === "android-screen") this.chooseSource({ kind: "screen" });
+		this.loadForSetup(setup);
+	}
+
+	/** Lists the apps or machines a kind of thing is picked from, if they aren't already. */
+	private loadForSetup(setup: Setup) {
+		const { source } = this.state;
+		if (setup === "android-app") {
+			if (this.state.appsFrom?.kind !== "android") void this.openApps({ kind: "android" });
+		} else if (setup === "linux-app") {
+			if (this.state.appsFrom?.kind !== "terminal" && this.state.appsFrom?.kind !== "machine") {
+				void this.openApps({ kind: "terminal" });
+			}
+		} else if (setup === "linux-desktop" || setup === "linux-console") {
+			const machines = machinesFor(setup, this.state.machines ?? []);
+			// With one machine to pick from, it's picked.
+			if (machines.length === 1 && setupOf(source) !== setup) {
+				const [machine] = machines;
+				this.chooseSource({
+					kind: "machine",
+					vm: machine.id,
+					name: machine.name,
+					view: setup === "linux-desktop" ? "desktop" : "console",
+				});
+			}
+		}
+	}
+
+	/**
+	 * Turns on the network, starts what was picked, and goes to it. Shinonome starts here, so a phone that can't show it
+	 * says so straight away; a Minori machine starts in the live view, where it says how it's getting on.
+	 */
 	async launch() {
+		if (!readyToLaunch(this.state)) return;
 		const job = ++this.job;
 		this.update({ launchStage: "network", error: null, notice: null, busy: null });
 		try {
 			await this.runNetwork(true);
 			if (job !== this.job) return;
-			this.update({ launchStage: "desktop", busy: null });
-			await this.prepareDesktop();
+			this.update({ launchStage: "desktop", busy: null, appsFrom: null });
+			if (shinonomeMode(this.state.source)) {
+				await this.prepareDesktop();
+			} else {
+				this.update({ desktop: "off", machineView: "starting", machineMessage: null });
+			}
 			if (job !== this.job) return;
 			this.update({ launchStage: null, busy: null, step: "live" });
 		} catch (error) {
@@ -801,7 +946,15 @@ export class Controller {
 	 * its own screen, or one app. A server showing something else is started again. A phone that can't do it says why.
 	 */
 	private async prepareDesktop() {
-		this.update({ desktop: "starting", desktopProblem: null, desktopStatus: null, hasPicture: false });
+		// Nothing from before may reach the session now: not a link to the old server, nor a reconnect on its way.
+		this.dropDesktopLink();
+		this.update({
+			desktop: "starting",
+			desktopProblem: null,
+			desktopStatus: null,
+			desktopStats: null,
+			hasPicture: false,
+		});
 		try {
 			const phone = this.requirePhone();
 			const mode = shinonomeMode(this.state.source) ?? { kind: "desktop" };
@@ -837,7 +990,6 @@ export class Controller {
 
 	/** The desktop's screen hands over its canvas when it appears. */
 	attachCanvas(canvas: HTMLCanvasElement) {
-		this.canvas = canvas;
 		this.session?.dispose();
 		this.session = new DesktopSession(canvas, {
 			onStatus: (desktopStatus) => this.update({ desktopStatus }),
@@ -922,7 +1074,6 @@ export class Controller {
 		this.desktopSocket = null;
 		this.session?.dispose();
 		this.session = null;
-		this.canvas = null;
 	}
 
 	private async openDesktopLink() {
@@ -975,6 +1126,14 @@ export class Controller {
 		if (job === this.desktopJob && this.phone === phone) void this.openDesktopLink();
 	}
 
+	/** Lets go of the link to Shinonome's server, and stops any reconnecting. The server itself keeps running. */
+	private dropDesktopLink() {
+		this.desktopJob++;
+		void this.desktopSocket?.close();
+		this.desktopSocket = null;
+		this.session?.detach();
+	}
+
 	private endDesktopLink(notice: string) {
 		this.desktopJob++;
 		this.desktopSocket = null;
@@ -984,54 +1143,93 @@ export class Controller {
 
 	// Minori's machines
 
-	/** Asks Minori for its machines, starting it if it isn't running. Only when someone opens the menu. */
+	/** Asks Minori for its machines, starting it if it isn't running. Only when someone is choosing what to show. */
 	async loadMachines() {
 		const phone = this.phone;
 		if (!phone) return;
 		this.update({ machinesProblem: null });
 		try {
-			const machines = await listMachines(phone);
-			if (this.phone === phone) this.update({ machines });
+			const machines = await withTimeout(
+				listMachines(phone),
+				MACHINES_TIMEOUT_MILLIS,
+				"Minori didn't answer. Open Minori on the phone, or update it, then try again.",
+			);
+			if (this.phone !== phone) return;
+			this.update({ machines });
+			const { source, setup } = this.state;
+			if (this.state.step === "live") return;
+			// A remembered machine that's gone is forgotten, and one machine on its own is picked.
+			if (source.kind === "machine" && !machines.some((machine) => machine.id === source.vm)) {
+				this.update({ source: { kind: "screen" } });
+			}
+			if (setup === "linux-desktop" || setup === "linux-console") this.loadForSetup(setup);
 		} catch (error) {
 			if (this.phone === phone) this.update({ machinesProblem: message(error) });
 		}
 	}
 
 	/**
-	 * Shows the Pixel's desktop, its screen, one app, or a machine. Shinonome shows one of the first three at a time, so
-	 * switching between them starts it again; while a machine is shown, what Shinonome had keeps running on the phone.
+	 * Picks what the tab shows: Android's desktop or screen, one Android or Linux app, or a machine. Before Launch that's
+	 * all it does. In the session, Shinonome shows one of the first four at a time, so switching between them starts it
+	 * again; while a machine is shown, what Shinonome had keeps running on the phone.
 	 */
 	chooseSource(source: Source) {
 		const current = this.state.source;
-		if (JSON.stringify(current) === JSON.stringify(source)) return;
+		store(STORED_SOURCE, JSON.stringify(source));
+		if (this.state.step !== "live") {
+			this.update({ source, setup: setupOf(source) });
+			return;
+		}
+		if (sameSource(current, source)) return;
 		this.closeMachine();
 		if (shinonomeMode(source)) {
-			this.update({ source, machineView: null, machineMessage: null, appsFrom: null });
-			this.desktopJob++;
-			void this.desktopSocket?.close();
-			this.desktopSocket = null;
-			// A fresh session for what's shown next, so it says when its first picture arrives.
-			if (this.canvas) this.attachCanvas(this.canvas);
+			// No link opens until the server for this source is ready, and the session reports the first picture from
+			// each new link, so the "waiting for the first picture" note always goes when the picture comes.
+			this.update({ source, setup: setupOf(source), machineView: null, machineMessage: null, appsFrom: null });
 			void this.restartDesktop();
 			return;
 		}
 		if (shinonomeMode(current)) {
-			// Let go of the Pixel's desktop link, so its video doesn't stream to a hidden canvas.
-			this.desktopJob++;
-			void this.desktopSocket?.close();
-			this.desktopSocket = null;
-			this.session?.detach();
-			this.update({ desktop: "connecting", hasPicture: false, desktopStats: null });
+			// Let go of Shinonome's link, so its video doesn't stream to a hidden canvas. Its server keeps running.
+			this.dropDesktopLink();
+			this.update({ desktop: "off", hasPicture: false, desktopStatus: null, desktopStats: null });
 		}
-		this.update({ source, machineView: "starting", machineMessage: null });
+		this.update({ source, setup: setupOf(source), machineView: "starting", machineMessage: null, appsFrom: null });
 	}
 
-	// One Linux app at a time
+	// One app at a time
 
-	/** Opens the "One Linux app" dialog on one place's apps, and lists them. A machine is started for it if need be. */
-	async openApps(from: AppsFrom) {
+	/**
+	 * Lists one place's apps, for the onboarding or the live view's dialog. Android's are listed once per connection.
+	 * A machine is started for its Linux apps if need be.
+	 */
+	async openApps(from: AppsFrom, again = false) {
 		const phone = this.phone;
 		if (!phone) return;
+		if (from.kind === "android") {
+			this.update({ appsFrom: from });
+			if (this.state.androidApps && !again) return;
+			this.update({ androidApps: null, androidAppsProblem: null });
+			try {
+				const apps = await phone.desktop.launchableApps(await this.fetchShinonomeApk());
+				if (this.phone !== phone) return;
+				this.update({
+					androidApps: apps,
+					androidAppsProblem: apps.length > 0 ? null : "Android didn't list any apps.",
+				});
+				const { source } = this.state;
+				if (
+					this.state.step !== "live" &&
+					source.kind === "android-app" &&
+					!apps.some((app) => app.component === source.component)
+				) {
+					this.update({ source: { kind: "screen" } });
+				}
+			} catch (error) {
+				if (this.phone === phone) this.update({ androidAppsProblem: message(error) });
+			}
+			return;
+		}
 		this.update({ appsFrom: from, linuxApps: null, linuxAppsProblem: null, linuxAppsStatus: null });
 		const live = () => this.phone === phone && JSON.stringify(this.state.appsFrom) === JSON.stringify(from);
 		try {
@@ -1114,10 +1312,16 @@ export class Controller {
 			phone: null,
 			usbDevice: null,
 			launchStage: null,
-			source: { kind: "pixel" },
+			source: storedSource(),
+			setup: setupOf(storedSource()),
+			desktopChecked: false,
+			desktopSupportProblem: null,
 			minoriInstalled: false,
 			airiInstalled: false,
 			appsFrom: null,
+			androidApps: null,
+			androidAppsProblem: null,
+			machinesProblem: null,
 			linuxApps: null,
 			linuxAppsStatus: null,
 			linuxAppsProblem: null,

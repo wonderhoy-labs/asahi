@@ -11,6 +11,7 @@ import "mdui/components/linear-progress.js";
 import "mdui/components/menu.js";
 import "mdui/components/menu-item.js";
 import "mdui/components/text-field.js";
+import "@mdui/icons/android.js";
 import "@mdui/icons/arrow-downward.js";
 import "@mdui/icons/arrow-drop-down.js";
 import "@mdui/icons/arrow-upward.js";
