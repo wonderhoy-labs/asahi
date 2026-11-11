@@ -1,11 +1,13 @@
 import shiraApkUrl from "@wonderhoy-labs/shira/shira.apk?url";
 import { type ReactNode, useEffect, useRef, useState } from "react";
+import { adbServerAvailable } from "../adb/dev-server";
 import { isUsbAvailable } from "../adb/usb";
 import { SHIRA_RELEASES_URL } from "../asahi/constants";
 import {
 	type AsahiState,
 	type Controller,
 	capabilities,
+	computerRouteAvailable,
 	type LaunchStage,
 	readyToLaunch,
 	SETUP_STEPS,
@@ -49,8 +51,10 @@ export function Onboarding({ controller, state }: Props) {
 					<StepItem
 						step="server"
 						state={state}
-						title="Pick a Wisp server"
-						summary={state.serverLabel}
+						title={computerRouteAvailable ? "Choose the network" : "Pick a Wisp server"}
+						summary={
+							state.serverLabel ? state.serverLabel[0]?.toUpperCase() + state.serverLabel.slice(1) : null
+						}
 						onChange={() => controller.goBack("server")}
 					>
 						<ServerStep controller={controller} state={state} />
@@ -102,7 +106,9 @@ function Hero() {
 					One Linux app from Airi, or a Minori machine's desktop or console, right beside Android.
 				</Feature>
 				<Feature icon={<mdui-icon-public />} title="Internet over USB">
-					Your phone's traffic goes down the cable and out through a Wisp server you choose.
+					{computerRouteAvailable
+						? "Your phone's traffic goes down the cable and out through this computer, or a Wisp server you choose."
+						: "Your phone's traffic goes down the cable and out through a Wisp server you choose."}
 				</Feature>
 				<Feature icon={<mdui-icon-usb />} title="Only USB debugging">
 					No root, no adb and no drivers. Chrome or Edge on any computer will do.
@@ -200,12 +206,15 @@ function UsbStep({ controller }: Pick<Props, "controller">) {
 					</span>
 				</div>
 			)}
-			{import.meta.env.DEV ? <DevDevices controller={controller} /> : null}
+			{adbServerAvailable ? <DevDevices controller={controller} /> : null}
 		</>
 	);
 }
 
-/** Emulators have no USB, so in development the page can also find devices through the adb server. */
+/**
+ * Emulators have no USB, so in development, and when installed as an Isolated Web App, the page can also find devices
+ * through the adb server.
+ */
 function DevDevices({ controller }: { controller: Controller }) {
 	const [devices, setDevices] = useState<import("../adb/dev-server").DevDevice[]>([]);
 	useEffect(() => {
@@ -229,7 +238,11 @@ function DevDevices({ controller }: { controller: Controller }) {
 	if (devices.length === 0) return null;
 	return (
 		<div className="dev-devices">
-			<span className="note">From the adb server (development only):</span>
+			<span className="note">
+				{import.meta.env.DEV
+					? "From the adb server (development only):"
+					: "Phones adb on this computer can see:"}
+			</span>
 			<div className="actions">
 				{devices.map((device) => (
 					<mdui-button
@@ -275,6 +288,66 @@ function AuthorizeStep({ controller, state }: Props) {
 }
 
 function ServerStep({ controller, state }: Props) {
+	if (!computerRouteAvailable) return <WispForm controller={controller} state={state} />;
+	return (
+		<>
+			<p>Your phone's traffic can go out through this computer's own connection, or through a Wisp server.</p>
+			<fieldset className="route-options" aria-label="Network">
+				<RouteOption
+					selected={state.route === "computer"}
+					onSelect={() => controller.setRoute("computer")}
+					icon={<mdui-icon-computer />}
+					title="This computer"
+					text="Asahi opens your phone's connections itself, like a tether. No server, and nothing else to run."
+				/>
+				<RouteOption
+					selected={state.route === "wisp"}
+					onSelect={() => controller.setRoute("wisp")}
+					icon={<mdui-icon-dns />}
+					title="A Wisp server"
+					text="Your phone's traffic goes out from a server you choose, wherever it is."
+				/>
+			</fieldset>
+			{state.route === "computer" ? (
+				<div className="actions">
+					<mdui-button variant="filled" onClick={() => controller.chooseComputer()}>
+						Continue
+					</mdui-button>
+				</div>
+			) : (
+				<WispForm controller={controller} state={state} />
+			)}
+		</>
+	);
+}
+
+function RouteOption({
+	selected,
+	onSelect,
+	icon,
+	title,
+	text,
+}: {
+	selected: boolean;
+	onSelect: () => void;
+	icon: ReactNode;
+	title: string;
+	text: string;
+}) {
+	return (
+		<label className={`route-option${selected ? " route-option-selected" : ""}`}>
+			<input type="radio" name="route" className="route-option-input" checked={selected} onChange={onSelect} />
+			<span className="route-option-icon">{icon}</span>
+			<span className="route-option-text">
+				<strong>{title}</strong>
+				<span>{text}</span>
+			</span>
+			{selected ? <mdui-icon-check-circle className="route-option-check" /> : null}
+		</label>
+	);
+}
+
+function WispForm({ controller, state }: Props) {
 	const passwordRef = useRef<HTMLInputElement & { value: string }>(null);
 	const submit = () => void controller.chooseServer(passwordRef.current?.value ?? "");
 	const recent = state.recentServers.filter((url) => url !== state.serverInput);

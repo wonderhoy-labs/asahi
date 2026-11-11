@@ -10,6 +10,114 @@ import { thirdPartyNotices } from "./notices.ts";
 const repo = (path: string) => fileURLToPath(new URL(`../../${path}`, import.meta.url));
 
 const WISP_PATH = "/wisp/";
+/** Where an Isolated Web App's manifest has to be. */
+const IWA_MANIFEST_PATH = ".well-known/manifest.webmanifest";
+
+interface Brand {
+	name: string;
+	tagline: string;
+	color: string;
+}
+
+const ICONS = [
+	{ src: "icons/icon-192.png", sizes: "192x192", type: "image/png" },
+	{ src: "icons/icon-512.png", sizes: "512x512", type: "image/png" },
+];
+
+/** The web app manifest that makes the site installable as a PWA. Paths are relative, for GitHub Pages. */
+export function pwaManifest(brand: Brand): string {
+	return `${JSON.stringify(
+		{
+			name: brand.name,
+			short_name: brand.name,
+			description: brand.tagline,
+			id: "./",
+			start_url: "./",
+			scope: "./",
+			display: "standalone",
+			theme_color: brand.color,
+			background_color: brand.color,
+			icons: [...ICONS, { ...ICONS[1], purpose: "maskable" }],
+		},
+		null,
+		"\t",
+	)}\n`;
+}
+
+/**
+ * The Isolated Web App's manifest. Direct Sockets let Asahi open the phone's connections itself, through Shiho's
+ * library, and reach the adb server on this computer, which also needs Local Network Access.
+ */
+export function iwaManifest(brand: Brand, version: string): string {
+	return `${JSON.stringify(
+		{
+			name: brand.name,
+			short_name: brand.name,
+			description: brand.tagline,
+			version,
+			id: "/",
+			start_url: "/",
+			scope: "/",
+			display: "standalone",
+			theme_color: brand.color,
+			background_color: brand.color,
+			icons: ICONS.map((icon) => ({ ...icon, src: `/${icon.src}` })),
+			permissions_policy: {
+				"cross-origin-isolated": ["self"],
+				"direct-sockets": ["self"],
+				"local-network": ["self"],
+				"local-network-access": ["self"],
+				"loopback-network": ["self"],
+				usb: ["self"],
+			},
+		},
+		null,
+		"\t",
+	)}\n`;
+}
+
+/**
+ * A service worker for the PWA. It keeps the files of the build it came with, so Asahi opens without a connection,
+ * and fetches the page itself first so a new version shows as soon as it's published. Everything else, such as a Wisp
+ * server, it leaves alone.
+ */
+export function serviceWorker(version: string, files: string[]): string {
+	return `// Asahi ${version}. Written by the build; see web/plugins/asahi.ts.
+const CACHE = ${JSON.stringify(`asahi-${version}`)};
+const FILES = ${JSON.stringify(["./", ...files])};
+
+self.addEventListener("install", (event) => {
+	event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(FILES)).then(() => self.skipWaiting()));
+});
+
+self.addEventListener("activate", (event) => {
+	event.waitUntil(
+		caches
+			.keys()
+			.then((keys) => Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))))
+			.then(() => self.clients.claim()),
+	);
+});
+
+self.addEventListener("fetch", (event) => {
+	const request = event.request;
+	if (request.method !== "GET" || new URL(request.url).origin !== self.location.origin) return;
+	if (request.mode === "navigate") {
+		event.respondWith(
+			fetch(request)
+				.then((response) => {
+					const copy = response.clone();
+					caches.open(CACHE).then((cache) => cache.put("./", copy));
+					return response;
+				})
+				.catch(() => caches.match("./")),
+		);
+		return;
+	}
+	event.respondWith(caches.match(request).then((cached) => cached ?? fetch(request)));
+});
+`;
+}
 const ADB_PATH = "/__asahi/adb";
 
 /**
@@ -59,6 +167,7 @@ export function asahi(): Plugin {
 		}
 	).version;
 	const [major = 0, minor = 0, patch = 0] = shira.split(".").map(Number);
+	const brand = (JSON.parse(readFileSync(repo("package.json"), "utf8")) as { wonderhoy: Brand }).wonderhoy;
 
 	return {
 		name: "asahi",
@@ -81,7 +190,21 @@ export function asahi(): Plugin {
 			serveWisp(server.httpServer as Server, false);
 		},
 
-		generateBundle() {
+		generateBundle(_options, bundle) {
+			this.emitFile({ type: "asset", fileName: "manifest.webmanifest", source: pwaManifest(brand) });
+			this.emitFile({ type: "asset", fileName: IWA_MANIFEST_PATH, source: iwaManifest(brand, version) });
+			// What the build made, apart from the big phone apps, which only matter with a phone plugged in anyway.
+			const built = Object.keys(bundle).filter(
+				(name) => !name.endsWith(".apk") && !name.endsWith(".map") && name !== "index.html",
+			);
+			const files = [
+				...built,
+				"manifest.webmanifest",
+				"favicon.png",
+				"logo.webp",
+				...ICONS.map((icon) => icon.src),
+			];
+			this.emitFile({ type: "asset", fileName: "sw.js", source: serviceWorker(version, files) });
 			this.emitFile({
 				type: "asset",
 				fileName: "third-party-licenses.txt",

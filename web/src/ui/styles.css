@@ -398,6 +398,88 @@
 	gap: 12px;
 }
 
+/* Where the phone's traffic goes, in the installed app. */
+.route-options {
+	min-width: 0;
+	padding: 0;
+	border: 0;
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 12px;
+	margin: 4px 0 16px;
+}
+
+.route-option {
+	position: relative;
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+	padding: 16px;
+	border: 1px solid rgb(var(--mdui-color-outline-variant));
+	border-radius: 12px;
+	background: rgb(var(--mdui-color-surface-container-low));
+	color: inherit;
+	font: inherit;
+	text-align: start;
+	cursor: pointer;
+}
+
+.route-option:hover {
+	background: rgb(var(--mdui-color-surface-container));
+}
+
+/* The radio button itself is hidden; the whole card is its label. */
+.route-option-input {
+	position: absolute;
+	opacity: 0;
+	pointer-events: none;
+}
+
+.route-option:has(.route-option-input:focus-visible) {
+	outline: 2px solid rgb(var(--mdui-color-primary));
+	outline-offset: 2px;
+}
+
+.route-option-selected {
+	border-color: rgb(var(--mdui-color-primary));
+	background: rgb(var(--mdui-color-secondary-container));
+}
+
+.route-option-selected:hover {
+	background: rgb(var(--mdui-color-secondary-container));
+}
+
+.route-option-icon {
+	display: flex;
+	color: rgb(var(--mdui-color-primary));
+	font-size: 24px;
+}
+
+.route-option-text {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.route-option-text strong {
+	font-weight: 500;
+}
+
+.route-option-text span {
+	color: rgb(var(--mdui-color-on-surface-variant));
+}
+
+.route-option-check {
+	color: rgb(var(--mdui-color-primary));
+}
+
+@media (max-width: 600px) {
+	.route-options {
+		grid-template-columns: 1fr;
+	}
+}
+
 /* A fieldset, for its meaning, without its border and spacing. */
 .recent-servers {
 	min-width: 0;
@@ -989,6 +1071,88 @@ p.motd {
 	display: flex;
 	flex-direction: column;
 	gap: 8px;
+}
+
+/* Where the phone's traffic goes, in the installed app. */
+.route-options {
+	min-width: 0;
+	padding: 0;
+	border: 0;
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 12px;
+	margin: 4px 0 16px;
+}
+
+.route-option {
+	position: relative;
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+	padding: 16px;
+	border: 1px solid rgb(var(--mdui-color-outline-variant));
+	border-radius: 12px;
+	background: rgb(var(--mdui-color-surface-container-low));
+	color: inherit;
+	font: inherit;
+	text-align: start;
+	cursor: pointer;
+}
+
+.route-option:hover {
+	background: rgb(var(--mdui-color-surface-container));
+}
+
+/* The radio button itself is hidden; the whole card is its label. */
+.route-option-input {
+	position: absolute;
+	opacity: 0;
+	pointer-events: none;
+}
+
+.route-option:has(.route-option-input:focus-visible) {
+	outline: 2px solid rgb(var(--mdui-color-primary));
+	outline-offset: 2px;
+}
+
+.route-option-selected {
+	border-color: rgb(var(--mdui-color-primary));
+	background: rgb(var(--mdui-color-secondary-container));
+}
+
+.route-option-selected:hover {
+	background: rgb(var(--mdui-color-secondary-container));
+}
+
+.route-option-icon {
+	display: flex;
+	color: rgb(var(--mdui-color-primary));
+	font-size: 24px;
+}
+
+.route-option-text {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.route-option-text strong {
+	font-weight: 500;
+}
+
+.route-option-text span {
+	color: rgb(var(--mdui-color-on-surface-variant));
+}
+
+.route-option-check {
+	color: rgb(var(--mdui-color-primary));
+}
+
+@media (max-width: 600px) {
+	.route-options {
+		grid-template-columns: 1fr;
+	}
 }
 
 /* A fieldset, for its meaning, without its border and spacing. */

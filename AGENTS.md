@@ -55,6 +55,16 @@ cd web && pnpm test && pnpm build
 - **Asahi 0.1.0 had its own app**, `com.wonderhoylabs.asahi`, signed with the key behind the `ASAHI_*` secrets. Nothing
   builds it now, but never replace or delete that key or those secrets.
 
+- **Two ways to install.** The site is a PWA (`manifest.webmanifest` and `sw.js`, written by `web/plugins/asahi.ts`).
+  The same build is also an Isolated Web App, `asahi.swbn`, signed by `tools/bundle.ts` through Shiho's library with
+  `~/.config/wonderhoy-labs/asahi/iwa-key.pem` and the `ASAHI_IWA_KEY` secret. Never replace that key: it's the app's
+  address, `isolated-app://ullmoikobfu5xdsfnxfr2cz24euvvqxfdqpyfrggaeqsbsnql2mqaaic/`.
+- **The network route** is Wisp by default. Only the Isolated Web App offers "This computer", which is Shiho's
+  `directSocketsUpstream` given to Shira's `ShiraLink`, and lists phones from the `adb` server through Shiho's
+  `adbServerClient`. Remembered in `localStorage['asahi.route']`. Production builds, the IWA included, ignore
+  `asahi.dev.desktop-args`, so don't run IWA sessions on the PIN-locked Pixel. Test the IWA on the emulator, with
+  Shiho's AGENTS.md notes on Chrome for Testing.
+
 ## Exceptions to the guideline
 
 - The live desktop view fills the whole window and leaves out the shared bar, which comes back with the onboarding

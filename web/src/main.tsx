@@ -49,12 +49,23 @@ import "@mdui/icons/volume-off.js";
 import "@mdui/icons/volume-up.js";
 import "@mdui/icons/vpn-key.js";
 import "@xterm/xterm/css/xterm.css";
+import { isDirectSocketsAvailable, trustSameOriginScripts } from "@wonderhoy-labs/shiho";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./ui/App";
 import "./ui/theme.css";
 import "./ui/wonderhoy.css";
 import "./ui/styles.css";
+
+// Installed as an Isolated Web App, workers need a Trusted Types policy, and Shira's and Shinonome's libraries use them.
+trustSameOriginScripts();
+
+// The PWA works offline from what the service worker kept. The Isolated Web App already has everything in its bundle.
+if (import.meta.env.PROD && "serviceWorker" in navigator && !isDirectSocketsAvailable()) {
+	void navigator.serviceWorker.register("./sw.js").catch((error: unknown) => {
+		console.warn("couldn't register the service worker", error);
+	});
+}
 
 createRoot(document.getElementById("root") as HTMLElement).render(
 	<StrictMode>

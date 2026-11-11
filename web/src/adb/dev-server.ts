@@ -1,10 +1,12 @@
+import { adbServerClient, isDirectSocketsAvailable } from "@wonderhoy-labs/shiho";
 import { AdbServerClient } from "@yume-chan/adb";
 import { MaybeConsumable, ReadableStream } from "@yume-chan/stream-extra";
 import { Phone } from "./phone";
 
 /**
  * Reaches the adb server on this computer through the development server. Emulators don't appear over
- * USB, so this is how the real page gets to one. It doesn't exist in production builds.
+ * USB, so this is how the development page gets to one. Installed as an Isolated Web App, the page reaches the adb
+ * server itself, with Shiho's Direct Sockets, instead.
  */
 class WebSocketConnector implements AdbServerClient.ServerConnector {
 	async connect(): Promise<AdbServerClient.ServerConnection> {
@@ -61,7 +63,15 @@ class WebSocketConnector implements AdbServerClient.ServerConnector {
 	}
 }
 
-const client = new AdbServerClient(new WebSocketConnector());
+/** Whether this page can reach the adb server: in development, or installed as an Isolated Web App. */
+export const adbServerAvailable = import.meta.env.DEV || isDirectSocketsAvailable();
+
+let client: AdbServerClient | null = null;
+
+function getClient(): AdbServerClient {
+	client ??= import.meta.env.DEV ? new AdbServerClient(new WebSocketConnector()) : adbServerClient();
+	return client;
+}
 
 export interface DevDevice {
 	serial: string;
@@ -69,7 +79,7 @@ export interface DevDevice {
 }
 
 export async function listDevDevices(): Promise<DevDevice[]> {
-	const devices = await client.getDevices(["device"]);
+	const devices = await getClient().getDevices(["device"]);
 	return devices.map((device) => ({
 		serial: device.serial,
 		label: device.model ? `${device.model.replaceAll("_", " ")} (${device.serial})` : device.serial,
@@ -77,7 +87,7 @@ export async function listDevDevices(): Promise<DevDevice[]> {
 }
 
 export async function openDevPhone(device: DevDevice): Promise<Phone> {
-	const transport = await client.createTransport({ serial: device.serial });
+	const transport = await getClient().createTransport({ serial: device.serial });
 	const { Adb } = await import("@yume-chan/adb");
 	return new Phone(new Adb(transport), device.label, "adb-server");
 }

@@ -16,12 +16,14 @@ Asahi lets you use your whole phone from a web page. Plug it into a computer, op
 to see: Android's own desktop mode, the phone's screen, any one of its apps, or the Linux apps and machines it runs through
 [Airi](https://github.com/wonderhoy-labs/airi) and [Minori](https://github.com/wonderhoy-labs/minori), all with your mouse and
 keyboard. Meanwhile everything the phone does goes down the cable and out through a
-[Wisp](https://github.com/MercuryWorkshop/wisp-protocol) server, so it works with the phone's Wi-Fi and mobile data turned off.
+[Wisp](https://github.com/MercuryWorkshop/wisp-protocol) server, or, if you install Asahi as an app, out of the computer
+itself, so it works with the phone's Wi-Fi and mobile data turned off.
 
 There's no root on the phone, and no `adb`, drivers or anything else on the computer. Asahi is the Wonderhoy Labs projects'
 web front, built on their libraries: [Shira](https://github.com/wonderhoy-labs/shira)'s app gives the phone its network,
-[Shinonome](https://github.com/wonderhoy-labs/shinonome)'s server, which runs without installing anything, shows Android, and
-Minori's helper shows its machines.
+[Shinonome](https://github.com/wonderhoy-labs/shinonome)'s server, which runs without installing anything, shows Android,
+Minori's helper shows its machines, and [Shiho](https://github.com/wonderhoy-labs/shiho)'s library opens the phone's
+connections from the computer when Asahi is installed as an Isolated Web App.
 
 ![Asahi in Chrome, showing a Pixel's desktop with two windows open](docs/screenshot.webp)
 
@@ -36,7 +38,8 @@ Minori's helper shows its machines.
   network part, on Android 10 or newer.
 - **USB debugging** turned on in Developer options, and a USB cable that carries data.
 - A computer with Chrome, Edge or another Chromium browser. Safari and Firefox don't have WebUSB.
-- A Wisp server. [Here's what to look for.](#wisp-servers)
+- A Wisp server, [here's what to look for](#wisp-servers), unless you install Asahi as an Isolated Web App and use this
+  computer's own connection.
 
 ## Use it
 
@@ -76,6 +79,28 @@ seconds, and the desktop ends by itself after 2 minutes. If the cable comes out,
 
 To stop, click **End session**. The desktop's windows go back to the phone, the phone goes back to its own network, and USB
 debugging is free for other tools again.
+
+### Install it as an app
+
+Asahi installs two ways, and the page works the same in both.
+
+**As a PWA**, from the site: Chrome's install button in the address bar, or its menu's **Cast, save and share → Install
+page as app**. It opens in its own window and keeps working without a connection to the site, from what it saved.
+
+**As an Isolated Web App**, which can do something the site can't: open your phone's connections itself, through
+[Shiho](https://github.com/wonderhoy-labs/shiho)'s library and Chrome's Direct Sockets, so you don't need a Wisp server.
+It can also reach the `adb` server on your computer, which lists emulators and lets you leave `adb` running.
+
+1. In Chrome, open `chrome://flags/#enable-isolated-web-app-dev-mode`, set it to Enabled and relaunch.
+2. Download `asahi.swbn` from the [latest release](https://github.com/wonderhoy-labs/asahi/releases/latest).
+3. Open `chrome://web-app-internals`, and under Isolated Web Apps choose **Install IWA from Signed Web Bundle**. Pick the
+   file.
+4. Open Asahi from your apps. At step 3, **Choose the network**, pick **This computer**. Chrome asks once whether Asahi may
+   access other apps and services on this device; that's the `adb` server, so allow it.
+
+Every release is signed with the same key, so the app is always
+`isolated-app://ullmoikobfu5xdsfnxfr2cz24euvvqxfdqpyfrggaeqsbsnql2mqaaic/`. Wisp stays the default, and still works in
+the app.
 
 ### While a session runs
 
@@ -182,6 +207,21 @@ enter it again after a reload. Key-based logins aren't supported.
 
 Everything here is on a Pixel 10 Pro running Android 17 (build `CP3A.260905.009`, not rooted), with a Mac, except where
 it says an emulator.
+
+**0.5.0 as an Isolated Web App, on an Android 17 emulator** (`Minori_Test_API_37`), from a signed `asahi.swbn` installed in
+Chrome for Testing 156 with `--install-isolated-web-app-from-file` and IWA developer mode. The page listed the emulator
+through the `adb` server over Direct Sockets, offered **This computer** at step 3, and with it chosen launched the Android
+screen: the network came up through Shiho's library (Shira on the emulator said "Through your computer") and the screen
+showed in the window at about 8 frames a second. Chrome's Local Network Access prompt was answered by presetting the test
+profile, not clicked. Not tried in the app: WebUSB, the Wisp route, the desktop, Linux sources, and the Pixel, whose PIN
+lock a production build can't keep off when a session ends.
+
+**0.5.0 as a PWA,** from a production build served by `vite preview` on `localhost` in the same Chrome: the manifest loaded
+with no errors, Chrome reported no installability errors, the service worker was active, and the page reloaded with the
+network off. Clicking Chrome's install button wasn't tried, because the test couldn't click browser UI.
+
+**0.5.0's default route, on Shira 0.3.0,** through the development server's page and Wisp server on the same emulator:
+the phone connected through the Wisp server and the Android screen showed, as before.
 
 **0.4.3's desktop for a Termux machine, on the Pixel through the development server,** with Minori 0.6.0. The chooser offered Debian in Termux under Linux desktop; launching it started the stopped machine and showed its Xfce desktop, and Xfce's Applications menu opened on a click.
 
@@ -307,7 +347,9 @@ commands that install and start things. Each socket is its project's, and descri
 This is Shira, through its library and its app. Normal apps can't use a phone's USB port as a network, but they can be a VPN,
 which receives every packet the phone sends. Shira's app does that and ends the connections right there, in a small TCP stack written in Kotlin that acts as the
 other end of every connection and turns each one into a Wisp stream. The page hands those to
-[wisp-js](https://github.com/MercuryWorkshop/wisp-js), which keeps the connection to your server.
+[wisp-js](https://github.com/MercuryWorkshop/wisp-js), which keeps the connection to your server. In the Isolated Web App,
+with **This computer** chosen, Shiho's library takes them instead and opens a TCP or UDP socket for each one on this
+computer, with Chrome's Direct Sockets.
 
 The app has no INTERNET permission, so its only way out is the cable. The VPN only exists while the page is attached and
 connected to a Wisp server. Android is told the VPN is a real network, so apps don't think they're offline when there's nothing
@@ -409,7 +451,10 @@ connected.
 - No IPv6. An IPv6 attempt would look like it worked and then fail, instead of falling back the way apps normally do.
 - An app's connection looks like it succeeded before the server has tried it, because Wisp doesn't confirm connections.
 - Wisp has no half-close, so a server that waits for the app to finish sending before it answers won't answer.
-- Traffic to your local network goes to the Wisp server too, which usually refuses it.
+- Traffic to your local network goes to the Wisp server too, which usually refuses it. Through this computer it reaches
+  the computer's local network.
+- The Isolated Web App only installs in Chrome's developer mode for them, outside managed ChromeOS, and has no update
+  manifest yet, so updates are installed by hand.
 - Discord, and other React Native apps, come apart on the desktop without sharp mode, because they lay out at the phone
   screen's density whatever display they're on. The page offers sharp mode when one is in front, and turning it on restarts
   them, which closes anything open in them, a call included. Sharp mode costs some latency, so it's off by default. The
@@ -434,9 +479,9 @@ pnpm install && pnpm format && pnpm unify
 | `web/src/asahi/controller.ts` | Everything the page does, step by step, on Shira's and Shinonome's libraries |
 | `web/src/adb/` | Reaching the phone over WebUSB or the development `adb` server, as one `Phone` with a network side and a desktop side |
 | `web/src/ui/` | The page's screens, in React with [mdui](https://github.com/zdhxiong/mdui) for Material 3 |
-| `web/plugins/` | The Vite plugin: the version of Shira the page carries, the notices, and the development servers |
+| `web/plugins/` | The Vite plugin: the version of Shira the page carries, the notices, the PWA's manifest and service worker, the Isolated Web App's manifest, and the development servers |
 | `VERSION` | Asahi's version |
-| `tools/` | The shared Wonderhoy Labs tools: `theme.ts` makes the colours, `unify.ts` checks the guideline |
+| `tools/` | The shared Wonderhoy Labs tools: `theme.ts` makes the colours, `unify.ts` checks the guideline. `bundle.ts` signs the Isolated Web App with Shiho's library |
 
 The libraries come from their releases, by the addresses in `web/package.json`. To move to a new version of either, change its
 address there and run `pnpm install`. The page carries the APKs inside them.
@@ -465,6 +510,11 @@ Preview serves a production build with the same Wisp server, at `ws://localhost:
 ```bash
 cd web && pnpm test && pnpm build && pnpm preview
 ```
+
+The build ends by signing `web/dist/asahi.swbn` with the key in `WEB_BUNDLE_KEY` or
+`~/.config/wonderhoy-labs/asahi/iwa-key.pem`, and skips it without one. CI signs with the `ASAHI_IWA_KEY` secret. Never
+replace that key: it's the app's address. To try a bundle, start Chrome with
+`--enable-features=IsolatedWebApps,IsolatedWebAppDevMode --install-isolated-web-app-from-file=<path to asahi.swbn>`.
 
 Pushing to `main` builds the page through [ci.yml](.github/workflows/ci.yml) and publishes it to GitHub Pages, whose source has
 to be GitHub Actions. Pushing a tag like `v0.2.0`, matching `VERSION`, publishes a GitHub release with its notes.

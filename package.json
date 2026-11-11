@@ -19,12 +19,17 @@
 		"format": "biome check --write",
 		"typecheck": "tsc -p . && pnpm --filter ./web typecheck",
 		"theme": "node tools/theme.ts",
-		"unify": "node tools/unify.ts"
+		"unify": "node tools/unify.ts",
+		"bundle": "node tools/bundle.ts"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "2.6.3",
 		"@material/material-color-utilities": "0.3.0",
 		"@types/node": "26.6.6",
+		"@wonderhoy-labs/shiho": "https://github.com/wonderhoy-labs/shiho/releases/download/v0.1.1/wonderhoy-labs-shiho-0.1.1.tgz",
+		"@wonderhoy-labs/shira": "https://github.com/wonderhoy-labs/shira/releases/download/v0.3.0/wonderhoy-labs-shira-0.3.0.tgz",
+		"@yume-chan/adb": "2.6.4",
+		"@yume-chan/stream-extra": "2.6.1",
 		"typescript": "7.0.2"
 	}
 }
