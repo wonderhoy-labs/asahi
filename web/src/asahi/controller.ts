@@ -27,7 +27,7 @@ import type { AdbSocket } from "@yume-chan/adb";
 import type { AdbDaemonWebUsbDevice } from "@yume-chan/adb-daemon-webusb";
 import type { Phone, PhoneKind } from "../adb/phone";
 import { authorizeUsb, claimUsb, knownPhone, pickPhone, UsbBusyError, type UsbConnection } from "../adb/usb";
-import { hasAiri, type LinuxApp, listLinuxApps } from "./airi";
+import { airiKnowsMachines, hasAiri, type LinuxApp, linuxAppIcon, listLinuxApps, machineSource } from "./airi";
 import { hasMinori, listMachines, type Machine, MachineView, type MachineViewState, readyForAiri } from "./minori";
 import {
 	availability,
@@ -117,6 +117,8 @@ export interface AsahiState {
 	androidAppsProblem: string | null;
 	/** Those apps, once listed, and what's happening while they aren't. */
 	linuxApps: LinuxApp[] | null;
+	/** Icons of [linuxApps] by desktop file, as `data:` addresses, filled in as they arrive; null where Linux has none. */
+	linuxAppIcons: Record<string, string | null>;
 	linuxAppsStatus: string | null;
 	linuxAppsProblem: string | null;
 	/** Whether Minori is on the phone. Without it there's nothing to pick, and the page looks as it always did. */
@@ -183,6 +185,11 @@ const RELEASE_DELAY_MILLIS = 500;
 const USB_RESET_MILLIS = 1_500;
 // Minori answers in a second once it's awake. An old or stuck one never does.
 const MACHINES_TIMEOUT_MILLIS = 20_000;
+/** How long a machine that has just started gets for Airi's agent in it to answer. */
+const AIRI_AGENT_WAIT_MILLIS = 30_000;
+/** How many icons to ask Airi for at once; each is an adb shell, and Airi asks Linux for each. */
+const LINUX_ICON_FETCHES = 4;
+const AIRI_AGENT_POLL_MILLIS = 2_000;
 
 function stored(key: string): string {
 	try {
@@ -333,6 +340,7 @@ export class Controller {
 		androidApps: null,
 		androidAppsProblem: null,
 		linuxApps: null,
+		linuxAppIcons: {},
 		linuxAppsStatus: null,
 		linuxAppsProblem: null,
 		machines: null,
@@ -1230,7 +1238,13 @@ export class Controller {
 			}
 			return;
 		}
-		this.update({ appsFrom: from, linuxApps: null, linuxAppsProblem: null, linuxAppsStatus: null });
+		this.update({
+			appsFrom: from,
+			linuxApps: null,
+			linuxAppIcons: {},
+			linuxAppsProblem: null,
+			linuxAppsStatus: null,
+		});
 		const live = () => this.phone === phone && JSON.stringify(this.state.appsFrom) === JSON.stringify(from);
 		try {
 			if (from.kind === "machine") {
@@ -1243,8 +1257,20 @@ export class Controller {
 			}
 			if (!live()) return;
 			this.update({ linuxAppsStatus: "Asking Airi for the apps." });
-			const apps = await listLinuxApps(phone);
-			if (!live()) return;
+			if (from.kind === "machine" && !(await airiKnowsMachines(phone))) {
+				throw new Error("This Airi only lists Android's terminal. Update Airi to 0.4.0 or later.");
+			}
+			const source = from.kind === "machine" ? machineSource(from.vm) : "terminal";
+			let apps: LinuxApp[] = [];
+			// A machine that has just started may not have Airi's agent answering yet, so ask again for a while.
+			const deadline = Date.now() + (from.kind === "machine" ? AIRI_AGENT_WAIT_MILLIS : 0);
+			for (;;) {
+				const rows = await listLinuxApps(phone);
+				if (!live()) return;
+				apps = rows.filter((app) => app.source === source);
+				if (apps.length > 0 || Date.now() > deadline) break;
+				await sleep(AIRI_AGENT_POLL_MILLIS);
+			}
 			this.update({
 				linuxApps: apps.sort((a, b) => a.name.localeCompare(b.name)),
 				linuxAppsStatus: null,
@@ -1255,9 +1281,23 @@ export class Controller {
 							? "Linux isn't running. Open Airi on the phone once to start it, then try again."
 							: `Airi didn't find any apps in ${from.name}.`,
 			});
+			void this.loadLinuxAppIcons(phone, apps, live);
 		} catch (error) {
 			if (live()) this.update({ linuxAppsStatus: null, linuxAppsProblem: message(error) });
 		}
+	}
+
+	/** Fetches the listed apps' icons from Airi a few at a time, showing each as it comes. */
+	private async loadLinuxAppIcons(phone: Phone, apps: LinuxApp[], live: () => boolean) {
+		const queue = [...apps];
+		const worker = async () => {
+			for (let app = queue.shift(); app && live(); app = queue.shift()) {
+				const icon = await linuxAppIcon(phone, app).catch(() => null);
+				if (!live()) return;
+				this.update({ linuxAppIcons: { ...this.state.linuxAppIcons, [app.desktopId]: icon } });
+			}
+		};
+		await Promise.all(Array.from({ length: LINUX_ICON_FETCHES }, worker));
 	}
 
 	closeApps() {

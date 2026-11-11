@@ -16,7 +16,7 @@ interface Props {
 	apps: PickableApp[];
 	selected: string | null;
 	onPick: (key: string) => void;
-	/** Shown with Linux apps, whose icons Airi doesn't share. */
+	/** Shown while an icon is on its way, and for apps without one. */
 	fallbackIcon: React.ReactNode;
 	label: string;
 }
@@ -139,7 +139,12 @@ export function AppsFrom({
 	return (
 		<AppPicker
 			label={from.kind === "machine" ? `Apps in ${from.name}` : "Linux apps"}
-			apps={apps.map((app) => ({ key: app.desktopId, name: app.name, detail: app.desktopId }))}
+			apps={apps.map((app) => ({
+				key: app.desktopId,
+				name: app.name,
+				detail: app.desktopId,
+				icon: state.linuxAppIcons[app.desktopId],
+			}))}
 			selected={
 				source.kind === "linux-app"
 					? (apps.find((app) => link(app.desktopId) === source.app)?.desktopId ?? null)
