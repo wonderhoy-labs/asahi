@@ -1,3 +1,4 @@
+import { directSocketsUpstream, isDirectSocketsAvailable } from "@wonderhoy-labs/shiho";
 import {
 	DesktopSession,
 	type DesktopStatus,
@@ -42,6 +43,12 @@ import {
 	shinonomeMode,
 } from "./sources";
 
+/** Where the phone's traffic goes. "computer" only exists in the Isolated Web App. */
+export type NetworkRoute = "wisp" | "computer";
+
+/** Whether this page can open connections itself, which only the installed Isolated Web App can. */
+export const computerRouteAvailable = isDirectSocketsAvailable();
+
 /** The onboarding, in order, and then the session itself. */
 export type Step = "usb" | "authorize" | "server" | "app" | "launch" | "live";
 export const SETUP_STEPS: Step[] = ["usb", "authorize", "server", "app", "launch"];
@@ -58,6 +65,11 @@ export interface AsahiState {
 	phone: string | null;
 	phoneKind: PhoneKind | null;
 
+	/**
+	 * Where the phone's traffic goes: a Wisp server through Shira, or, installed as an Isolated Web App, out of this
+	 * computer itself through Shiho's Direct Sockets. Remembered.
+	 */
+	route: NetworkRoute;
 	serverInput: string;
 	username: string;
 	/** Show the login fields, because the server asked or someone asked for them. */
@@ -162,6 +174,7 @@ export function readyToLaunch(state: AsahiState): boolean {
 }
 
 const STORED_SERVER = "asahi.server";
+const STORED_ROUTE = "asahi.route";
 const STORED_SERVERS = "asahi.servers";
 const STORED_USERNAME = "asahi.username";
 /** "off" keeps the phone's sound on the phone. */
@@ -216,6 +229,10 @@ function storedServers(): string[] {
 	} catch {
 		return [];
 	}
+}
+
+function storedRoute(): NetworkRoute {
+	return computerRouteAvailable && stored(STORED_ROUTE) === "computer" ? "computer" : "wisp";
 }
 
 function storedSource(): Source {
@@ -304,6 +321,7 @@ export class Controller {
 		serverInput: defaultServer(),
 		username: stored(STORED_USERNAME),
 		loginNeeded: false,
+		route: storedRoute(),
 		serverLabel: null,
 		serverMessage: null,
 		checkingServer: false,
@@ -478,9 +496,11 @@ export class Controller {
 		this.update({ step: "usb", usbDevice: null, busy: null });
 	}
 
-	/** Development only: uses a phone or emulator through the adb server, which has already let us in. */
+	/**
+	 * Uses a phone or emulator through the adb server, which has already let us in. Only in development, or installed as
+	 * an Isolated Web App.
+	 */
 	async connectThroughAdbServer(device: import("../adb/dev-server").DevDevice) {
-		if (!import.meta.env.DEV) return;
 		this.update({ error: null, notice: null });
 		try {
 			const { openDevPhone } = await import("../adb/dev-server");
@@ -601,7 +621,21 @@ export class Controller {
 		});
 	}
 
-	// Step 3: the Wisp server
+	// Step 3: the network
+
+	/** Chooses between a Wisp server and this computer's own connection, which only the installed app has. */
+	setRoute(route: NetworkRoute) {
+		if (route === "computer" && !computerRouteAvailable) return;
+		store(STORED_ROUTE, route);
+		this.update({ route, error: null });
+	}
+
+	/** Goes on with this computer's own connection, through Shiho. */
+	chooseComputer() {
+		if (!computerRouteAvailable) return;
+		this.setRoute("computer");
+		this.update({ serverLabel: "this computer", udp: true, wispVersion: null, serverMessage: null, step: "app" });
+	}
 
 	setServerInput(serverInput: string) {
 		this.update({ serverInput, error: null });
@@ -637,6 +671,7 @@ export class Controller {
 
 			this.serverUrl = normalized.url;
 			this.credentials = credentials;
+			this.setRoute("wisp");
 			store(STORED_SERVER, normalized.url);
 			if (credentials) store(STORED_USERNAME, credentials.username);
 			const recentServers = [
@@ -888,13 +923,15 @@ export class Controller {
 		this.stopNetwork();
 		const phone = this.requirePhone();
 		const serverUrl = this.serverUrl;
-		if (!serverUrl) return Promise.reject(new Error("Choose a Wisp server first."));
+		const throughComputer = this.state.route === "computer" && computerRouteAvailable;
+		if (!serverUrl && !throughComputer) return Promise.reject(new Error("Choose a Wisp server first."));
 		return new Promise<void>((resolve, reject) => {
 			let settled = false;
 			const link = new ShiraLink({
 				phone: phone.network,
-				serverUrl,
-				credentials: this.credentials,
+				...(throughComputer
+					? { upstream: directSocketsUpstream({ label: "your computer" }) }
+					: { serverUrl: serverUrl ?? undefined, credentials: this.credentials }),
 				log: this.log,
 				events: {
 					onState: (state) => {
