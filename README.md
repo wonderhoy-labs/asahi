@@ -94,6 +94,20 @@ sharper, and apps like Discord lay out properly, but each frame takes longer: ab
 14, in Shinonome's measurements of the same code. When an app that needs it comes to the front with sharp mode off, the page
 offers to turn it on, and turning it on restarts those apps with their windows where they were.
 
+### What the tab shows
+
+The menu at the top left picks what the tab shows, and the network keeps running whichever you pick:
+
+- **Pixel desktop**: Android's desktop mode, the usual.
+- **Pixel screen**: your phone's own screen, as it is, the way scrcpy shows it. The phone's screen stays on.
+- **One Linux app**, with [Airi](https://github.com/wonderhoy-labs/airi) 0.3.0 or later on the phone: a list of the Linux apps
+  in Android's terminal. The one you pick fills the tab on its own, and follows the window's size.
+- With [Minori](https://github.com/wonderhoy-labs/minori) on the phone, each of its machines: its desktop, its console, and,
+  when Minori has set Airi up in it, one of its apps alone. Picking a machine starts it if it's stopped.
+
+The Pixel's desktop, its screen and one app take turns, so switching between them closes the one before; the desktop's
+windows go back to the phone, and one app closes. A machine shows beside them, so what Shinonome had keeps running.
+
 ### The network log
 
 Every connection gets a row, newest first, with the app that made it, the destination, its status and how much went each way.
@@ -160,6 +174,14 @@ enter it again after a reload. Key-based logins aren't supported.
 
 Everything here is on a Pixel 10 Pro running Android 17 (build `CP3A.260905.009`, not rooted), with a Mac, except where
 it says an emulator.
+
+**The source menu, on an Android 17 emulator,** in the development server's page with Shinonome 0.4.0. The emulator can't
+make a desktop, and the page said so. **Pixel screen** showed the emulator's own screen at about 20 frames per second.
+**One Linux app** listed two apps from Airi 0.3.0, which was pointed at a stand-in for its Linux agent, since the emulator
+can't run Linux; picking one restarted Shinonome with just that app, and the tab showed Airi opening it, filling the tab.
+Switching back and forth between the screen and an app worked each time. A Minori machine's desktop and console were
+tried earlier the same way. Not yet on the phone: the screen and one app through this page. Shinonome's own tests showed
+both on the Pixel, including GNOME Calculator from the Linux terminal through Airi.
 
 **Shira 0.2.1's fix for ending a session, on an Android 17 emulator.** In Chrome 156 through the development server's
 link to `adb` and its Wisp server: **Install it for me** put Shira 0.2.1 on the emulator, **Launch** brought its VPN up, a
@@ -269,6 +291,11 @@ A virtual display shares the phone's power state, so the desktop would go blank 
 server wakes the phone whenever it sleeps and turns off only its screen.
 
 When the desktop ends, Android moves its windows back to the phone. They come back to the same places next time.
+
+**Pixel screen** asks Shinonome's server for a mirror of the phone's own display instead, and **one app** for a display of
+its own that isn't a desktop, with only that app on it, opened by its link: `airi://app/<desktop file ID>` for Airi, or
+`minori://vm/<machine>/app/<desktop file ID>` for a Minori machine, which starts the machine first. Airi's apps are listed
+over `adb` through Airi's own content provider.
 
 ## Security and privacy
 

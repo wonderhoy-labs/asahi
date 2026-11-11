@@ -1,7 +1,10 @@
 import { type SoundState, sharpSuggestion, toggleFullscreen } from "@wonderhoy-labs/shinonome";
 import { formatRate, type LogTotals } from "@wonderhoy-labs/shira";
 import { useEffect, useRef, useState } from "react";
-import type { AsahiState, Controller } from "../asahi/controller";
+import { airiLink, type LinuxApp, machineAppLink } from "../asahi/airi";
+import type { AppsFrom, AsahiState, Controller } from "../asahi/controller";
+import type { Machine } from "../asahi/minori";
+import { type MachineSource, type Source, sourceLabel } from "../asahi/sources";
 import { NetworkPanel, useLogSnapshot } from "./NetworkPanel";
 
 interface Props {
@@ -78,7 +81,12 @@ export function Live({ controller, state }: Props) {
 	const [panelOpen, setPanelOpen] = useState(false);
 	const snapshot = useLogSnapshot(controller, false);
 	const area = useRef<HTMLDivElement>(null);
-	const dragging = useFileDrop(area, state.desktop === "up", (files) => void controller.saveToPhone(files));
+	const machine = state.source.kind === "machine" ? state.source : null;
+	const dragging = useFileDrop(
+		area,
+		state.desktop === "up" && !machine,
+		(files) => void controller.saveToPhone(files),
+	);
 
 	useEffect(() => {
 		if (canvas.current) controller.attachCanvas(canvas.current);
@@ -101,6 +109,7 @@ export function Live({ controller, state }: Props) {
 			)}
 			<div className="live-body">
 				<div className="screen-area" ref={area}>
+					{/* Stays on the page while a machine is shown, so the Pixel's desktop picks up where it was. */}
 					<canvas
 						id="screen"
 						ref={canvas}
@@ -108,13 +117,21 @@ export function Live({ controller, state }: Props) {
 						height={1080}
 						tabIndex={0}
 						aria-label="Phone desktop"
+						hidden={machine !== null}
 					/>
-					{dragging ? (
+					{machine ? (
+						<MachineScreen
+							key={`${machine.vm}-${machine.view}-${state.machineAttempt}`}
+							controller={controller}
+							state={state}
+							source={machine}
+						/>
+					) : dragging ? (
 						<ScreenNote text="Drop to save in your phone's Downloads." icon={<mdui-icon-upload-file />} />
 					) : (
 						<ScreenMessage controller={controller} state={state} />
 					)}
-					<SharpPrompt controller={controller} state={state} />
+					{machine ? null : <SharpPrompt controller={controller} state={state} />}
 				</div>
 				{showPanel && !fullscreen ? (
 					<NetworkPanel
@@ -155,14 +172,24 @@ function TopBar({ controller, state, totals, panelOpen, onTogglePanel, canvas }:
 		<header className="top-bar">
 			<img className="top-bar-logo" src="./logo.webp" alt="" />
 			<span className="top-bar-phone">{state.phone ?? state.usbDevice ?? "Your phone"}</span>
-			<StatusChip light={desktopLight(state)} icon={<mdui-icon-desktop-windows />} label={desktopLabel(state)}>
-				{desktopStats && desktop === "up" ? (
-					<span className="chip-detail">
-						{desktopStats.fps} fps ·{" "}
-						{desktopStats.latencyMs === null ? "–" : `${desktopStats.latencyMs.toFixed(0)} ms`}
-					</span>
-				) : null}
-			</StatusChip>
+			<SourceMenu controller={controller} state={state} />
+			{state.appsFrom ? <AppsDialog controller={controller} state={state} from={state.appsFrom} /> : null}
+			{state.source.kind === "machine" ? (
+				<StatusChip light={machineLight(state)} icon={<mdui-icon-computer />} label={machineLabel(state)} />
+			) : (
+				<StatusChip
+					light={desktopLight(state)}
+					icon={<mdui-icon-desktop-windows />}
+					label={desktopLabel(state)}
+				>
+					{desktopStats && desktop === "up" ? (
+						<span className="chip-detail">
+							{desktopStats.fps} fps ·{" "}
+							{desktopStats.latencyMs === null ? "–" : `${desktopStats.latencyMs.toFixed(0)} ms`}
+						</span>
+					) : null}
+				</StatusChip>
+			)}
 			<StatusChip
 				light={networkLight(state)}
 				icon={<mdui-icon-public />}
@@ -270,6 +297,223 @@ function StatusChip({
 	);
 }
 
+function SourceIcon({ source }: { source: Source }) {
+	switch (source.kind) {
+		case "pixel":
+			return <mdui-icon-smartphone slot="icon" />;
+		case "screen":
+			return <mdui-icon-stay-current-portrait slot="icon" />;
+		case "app":
+			return <mdui-icon-web-asset slot="icon" />;
+		case "machine":
+			return source.view === "desktop" ? <mdui-icon-computer slot="icon" /> : <mdui-icon-terminal slot="icon" />;
+	}
+}
+
+/**
+ * Picks what the tab shows: the Pixel's desktop or its own screen, one Linux app through Airi, or a Minori machine's
+ * desktop or console. Airi's and Minori's entries only show when they're on the phone.
+ */
+function SourceMenu({ controller, state }: Props) {
+	const { source, machines, machinesProblem, minoriInstalled, airiInstalled } = state;
+	const pick = (machine: Machine, view: MachineSource["view"]) =>
+		controller.chooseSource({ kind: "machine", vm: machine.id, name: machine.name, view });
+	let items: React.ReactNode = null;
+	if (!minoriInstalled) {
+		items = null;
+	} else if (machinesProblem) {
+		items = <mdui-menu-item disabled>{machinesProblem}</mdui-menu-item>;
+	} else if (machines === null) {
+		items = <mdui-menu-item disabled>Asking Minori for its machines</mdui-menu-item>;
+	} else if (machines.length === 0) {
+		items = <mdui-menu-item disabled>No machines in Minori yet</mdui-menu-item>;
+	} else {
+		items = machines.flatMap((machine) => {
+			const note = machine.state === "running" ? "" : " · starts it";
+			return [
+				// A desktop goes through Minori's guest agent; a console doesn't need it.
+				machine.agent ? (
+					<mdui-menu-item key={`${machine.id}-desktop`} onClick={() => pick(machine, "desktop")}>
+						<mdui-icon-computer slot="icon" />
+						{machine.name}: desktop{note}
+					</mdui-menu-item>
+				) : null,
+				<mdui-menu-item key={`${machine.id}-console`} onClick={() => pick(machine, "console")}>
+					<mdui-icon-terminal slot="icon" />
+					{machine.name}: console{note}
+				</mdui-menu-item>,
+				// Airi shows a machine's apps once Minori has set Airi up in it.
+				machine.airi && airiInstalled ? (
+					<mdui-menu-item
+						key={`${machine.id}-apps`}
+						onClick={() =>
+							void controller.openApps({ kind: "machine", vm: machine.id, name: machine.name })
+						}
+					>
+						<mdui-icon-web-asset slot="icon" />
+						{machine.name}: one app{note}
+					</mdui-menu-item>
+				) : null,
+			];
+		});
+	}
+	return (
+		<mdui-dropdown>
+			<mdui-button
+				slot="trigger"
+				variant="text"
+				className="source-button"
+				onClick={() => {
+					if (minoriInstalled) void controller.loadMachines();
+				}}
+			>
+				<SourceIcon source={source} />
+				{sourceLabel(source)}
+				<mdui-icon-arrow-drop-down slot="end-icon" />
+			</mdui-button>
+			<mdui-menu>
+				<mdui-menu-item onClick={() => controller.chooseSource({ kind: "pixel" })}>
+					<mdui-icon-smartphone slot="icon" />
+					Pixel desktop
+				</mdui-menu-item>
+				<mdui-menu-item onClick={() => controller.chooseSource({ kind: "screen" })}>
+					<mdui-icon-stay-current-portrait slot="icon" />
+					Pixel screen
+				</mdui-menu-item>
+				{airiInstalled ? (
+					<mdui-menu-item onClick={() => void controller.openApps({ kind: "terminal" })}>
+						<mdui-icon-web-asset slot="icon" />
+						One Linux app
+					</mdui-menu-item>
+				) : null}
+				{minoriInstalled ? <mdui-divider /> : null}
+				{items}
+			</mdui-menu>
+		</mdui-dropdown>
+	);
+}
+
+/**
+ * Lists Linux apps from Android's terminal or a Minori machine, through Airi. Picking one shows it alone, filling the tab,
+ * through Shinonome; Airi opens it, and Minori starts its machine first.
+ */
+function AppsDialog({ controller, state, from }: Props & { from: AppsFrom }) {
+	const dialog = useRef<HTMLElement>(null);
+	useEffect(() => {
+		// React can't listen for this event by name, because of how it spells custom element events.
+		const element = dialog.current;
+		const onClosed = () => controller.closeApps();
+		element?.addEventListener("closed", onClosed);
+		return () => element?.removeEventListener("closed", onClosed);
+	}, [controller]);
+	const { linuxApps, linuxAppsStatus, linuxAppsProblem } = state;
+	const open = (app: LinuxApp) =>
+		controller.chooseSource({
+			kind: "app",
+			app: from.kind === "machine" ? machineAppLink(from.vm, app.desktopId) : airiLink(app.desktopId),
+			name: app.name,
+		});
+	return (
+		<mdui-dialog
+			ref={dialog as never}
+			open
+			close-on-esc
+			close-on-overlay-click
+			headline={from.kind === "machine" ? `Apps in ${from.name}` : "Linux apps"}
+			description="Shown alone, filling the tab. Airi opens it on the phone."
+		>
+			{linuxApps && linuxApps.length > 0 ? (
+				<div className="apps-list">
+					{linuxApps.map((app) => (
+						<button key={app.desktopId} type="button" className="apps-item" onClick={() => open(app)}>
+							<span className="apps-name">{app.name}</span>
+							<span className="apps-id">{app.desktopId}</span>
+						</button>
+					))}
+				</div>
+			) : (
+				<p className="apps-note">
+					{linuxAppsProblem ?? linuxAppsStatus ?? (linuxApps ? "No apps." : "Looking for apps.")}
+				</p>
+			)}
+			{linuxAppsProblem ? (
+				<mdui-button slot="action" variant="text" onClick={() => void controller.openApps(from)}>
+					Try again
+				</mdui-button>
+			) : null}
+			<mdui-button slot="action" variant="text" onClick={() => controller.closeApps()}>
+				Close
+			</mdui-button>
+		</mdui-dialog>
+	);
+}
+
+/** A Minori machine's desktop or console, in place of the Pixel's desktop. */
+function MachineScreen({ controller, state, source }: Props & { source: MachineSource }) {
+	const canvas = useRef<HTMLCanvasElement>(null);
+	const terminal = useRef<HTMLDivElement>(null);
+	useEffect(() => {
+		const element = source.view === "desktop" ? canvas.current : terminal.current;
+		if (element) controller.attachMachine(element);
+		return () => controller.releaseMachine();
+	}, [controller, source.view]);
+	const { machineView, machineMessage } = state;
+	return (
+		<>
+			{source.view === "desktop" ? (
+				<canvas
+					id="machine-screen"
+					ref={canvas}
+					width={1280}
+					height={720}
+					tabIndex={0}
+					aria-label={`${source.name}'s desktop`}
+				/>
+			) : (
+				<div className="machine-console" ref={terminal} />
+			)}
+			{machineView === "ended" ? (
+				<div className="screen-card" role="status">
+					{source.view === "desktop" ? <mdui-icon-computer /> : <mdui-icon-terminal />}
+					<h2>
+						{source.name}'s {source.view} closed
+					</h2>
+					<p>{machineMessage ?? "It ended."}</p>
+					<div className="actions">
+						<mdui-button variant="filled" onClick={() => controller.retryMachine()}>
+							Open it again
+						</mdui-button>
+						<mdui-button variant="text" onClick={() => controller.chooseSource({ kind: "pixel" })}>
+							Back to the Pixel
+						</mdui-button>
+					</div>
+				</div>
+			) : machineView === "starting" || machineView === "connecting" ? (
+				<ScreenNote
+					text={
+						machineMessage ??
+						(machineView === "starting" ? `Getting ${source.name} ready.` : `Connecting to ${source.name}.`)
+					}
+					icon={<mdui-circular-progress />}
+				/>
+			) : null}
+		</>
+	);
+}
+
+function machineLight({ machineView }: AsahiState): Light {
+	if (machineView === "up") return "good";
+	if (machineView === "ended") return "bad";
+	return "busy";
+}
+
+function machineLabel({ source, machineView }: AsahiState): string {
+	if (source.kind !== "machine") return "";
+	if (machineView === "up") return source.name;
+	if (machineView === "ended") return `${source.name} closed`;
+	return `${source.name} starting`;
+}
+
 function desktopLight({ desktop }: AsahiState): Light {
 	if (desktop === "up") return "good";
 	if (desktop === "starting" || desktop === "connecting") return "busy";
@@ -277,19 +521,21 @@ function desktopLight({ desktop }: AsahiState): Light {
 	return "off";
 }
 
-function desktopLabel({ desktop }: AsahiState): string {
+function desktopLabel({ desktop, source }: AsahiState): string {
+	// What Shinonome is showing: the desktop, the phone's screen, or one app.
+	const what = source.kind === "screen" ? "Screen" : source.kind === "app" ? "App" : "Desktop";
 	switch (desktop) {
 		case "up":
-			return "Desktop";
+			return what;
 		case "starting":
 		case "connecting":
-			return "Desktop starting";
+			return `${what} starting`;
 		case "unavailable":
-			return "No desktop";
+			return source.kind === "pixel" ? "No desktop" : `No ${what.toLowerCase()}`;
 		case "phone-lost":
-			return "Desktop waiting";
+			return `${what} waiting`;
 		default:
-			return "Desktop off";
+			return `${what} off`;
 	}
 }
 

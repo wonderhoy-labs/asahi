@@ -10,13 +10,16 @@ Shira and Shinonome in one web page. Over one USB cable and WebUSB, it shows the
 gets the phone online through a Wisp server. It's built on their libraries, `@wonderhoy-labs/shira` and
 `@wonderhoy-labs/shinonome`, and has no Android code of its own: the phone runs Shira's app for the network, and
 Shinonome's server for the desktop, which the page copies to the phone and starts as the shell user without installing
-it. Named for Asahina Mafuyu of 25-ji, Nightcord de. The site is at <https://wonderhoy-labs.github.io/asahi/>.
+it. Besides the Pixel's desktop, the tab can show the phone's own screen, one Linux app through Airi, and Minori's
+machines (`@wonderhoy-labs/minori`); `web/src/asahi/sources.ts` lists them. Named for Asahina Mafuyu of 25-ji, Nightcord
+de. The site is at <https://wonderhoy-labs.github.io/asahi/>.
 
 ## Layout
 
 | Path | What |
 | --- | --- |
 | `web/src/asahi/controller.ts` | Everything the page does, step by step, on the two libraries |
+| `web/src/asahi/sources.ts`, `minori.ts`, `airi.ts` | What the tab can show, Minori's machines, and Airi's apps |
 | `web/src/adb/` | WebUSB and the development adb server, and `Phone`, which pairs Shira's and Shinonome's phone helpers |
 | `web/src/ui/` | The onboarding and the live view |
 | `web/plugins/` | The Vite plugin: the carried Shira version, the notices, and the development Wisp and adb servers |
