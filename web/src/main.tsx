@@ -39,6 +39,8 @@ import "@mdui/icons/rocket-launch.js";
 import "@mdui/icons/search.js";
 import "@mdui/icons/smartphone.js";
 import "@mdui/icons/terminal.js";
+import "@mdui/icons/web-asset.js";
+import "@mdui/icons/stay-current-portrait.js";
 import "@mdui/icons/upload-file.js";
 import "@mdui/icons/usb.js";
 import "@mdui/icons/verified-user.js";

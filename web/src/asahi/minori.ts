@@ -11,11 +11,9 @@ import {
 } from "@wonderhoy-labs/minori";
 import { Terminal } from "@xterm/xterm";
 import type { Phone } from "../adb/phone";
+import type { MachineSource } from "./sources";
 
 export type { Machine };
-
-/** What the tab shows: the Pixel's desktop from Shinonome, or a Minori machine's desktop or console. */
-export type Source = { kind: "pixel" } | { kind: "machine"; vm: string; name: string; view: "desktop" | "console" };
 
 export type MachineViewState = "starting" | "connecting" | "up" | "ended";
 
@@ -90,6 +88,17 @@ async function ready(
 	}
 }
 
+/** The port Airi's agent listens on in a machine Minori set Airi up in. */
+const AIRI_PORT = 47821;
+
+/**
+ * Starts a machine Airi is set up in, if it isn't running, and waits for Airi's agent in it. Airi then lists that
+ * machine's apps.
+ */
+export async function readyForAiri(phone: Phone, vm: string, onStatus: (text: string) => void, live: () => boolean) {
+	await ready(await awake(phone), vm, AIRI_PORT, onStatus, live);
+}
+
 export interface MachineViewEvents {
 	onState(state: MachineViewState, message: string | null): void;
 }
@@ -104,7 +113,7 @@ export class MachineView {
 
 	constructor(
 		private readonly phone: Phone,
-		private readonly source: Extract<Source, { kind: "machine" }>,
+		private readonly source: MachineSource,
 		private readonly events: MachineViewEvents,
 	) {}
 

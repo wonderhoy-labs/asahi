@@ -2,9 +2,11 @@ import {
 	DesktopSession,
 	type DesktopStatus,
 	exposeDebugApi,
+	modeArgs,
 	runDesktopLink,
 	type SessionStats,
 	type SoundState,
+	sameMode,
 } from "@wonderhoy-labs/shinonome";
 import shinonomeApkUrl from "@wonderhoy-labs/shinonome/shinonome.apk?url";
 import {
@@ -24,7 +26,9 @@ import type { AdbSocket } from "@yume-chan/adb";
 import type { AdbDaemonWebUsbDevice } from "@yume-chan/adb-daemon-webusb";
 import type { Phone, PhoneKind } from "../adb/phone";
 import { authorizeUsb, claimUsb, knownPhone, pickPhone, UsbBusyError, type UsbConnection } from "../adb/usb";
-import { hasMinori, listMachines, type Machine, MachineView, type MachineViewState, type Source } from "./minori";
+import { hasAiri, type LinuxApp, listLinuxApps } from "./airi";
+import { hasMinori, listMachines, type Machine, MachineView, type MachineViewState, readyForAiri } from "./minori";
+import { type Source, shinonomeMode } from "./sources";
 
 /** The onboarding, in order, and then the session itself. */
 export type Step = "usb" | "authorize" | "server" | "app" | "launch" | "live";
@@ -85,8 +89,16 @@ export interface AsahiState {
 	/** What happened to the last one. */
 	transferNote: string | null;
 
-	/** What the tab shows: the Pixel's desktop, unless someone picked a Minori machine. */
+	/** What the tab shows: the Pixel's desktop, unless someone picked something else. */
 	source: Source;
+	/** Whether Airi is on the phone, so its Linux apps can be offered one at a time. */
+	airiInstalled: boolean;
+	/** The "One Linux app" dialog: whose apps it lists, or null when it's closed. */
+	appsFrom: AppsFrom | null;
+	/** Those apps, once listed, and what's happening while they aren't. */
+	linuxApps: LinuxApp[] | null;
+	linuxAppsStatus: string | null;
+	linuxAppsProblem: string | null;
 	/** Whether Minori is on the phone. Without it there's nothing to pick, and the page looks as it always did. */
 	minoriInstalled: boolean;
 	/** Minori's machines, once someone opened the menu. */
@@ -103,6 +115,9 @@ export interface AsahiState {
 	error: string | null;
 	notice: string | null;
 }
+
+/** Where a list of Linux apps comes from: Android's own terminal, or a Minori machine with Airi set up in it. */
+export type AppsFrom = { kind: "terminal" } | { kind: "machine"; vm: string; name: string };
 
 const STORED_SERVER = "asahi.server";
 const STORED_SERVERS = "asahi.servers";
@@ -245,6 +260,11 @@ export class Controller {
 		transferNote: null,
 		source: { kind: "pixel" },
 		minoriInstalled: false,
+		airiInstalled: false,
+		appsFrom: null,
+		linuxApps: null,
+		linuxAppsStatus: null,
+		linuxAppsProblem: null,
 		machines: null,
 		machinesProblem: null,
 		machineView: null,
@@ -272,6 +292,7 @@ export class Controller {
 
 	// The desktop
 	private session: DesktopSession | null = null;
+	private canvas: HTMLCanvasElement | null = null;
 	private desktopSocket: AdbSocket | null = null;
 	private desktopJob = 0;
 	private transferNoteTimer: ReturnType<typeof setTimeout> | undefined;
@@ -415,6 +436,12 @@ export class Controller {
 				if (this.phone === phone) this.update({ minoriInstalled });
 			},
 			(error: unknown) => console.info("couldn't look for Minori", error),
+		);
+		void hasAiri(phone).then(
+			(airiInstalled) => {
+				if (this.phone === phone) this.update({ airiInstalled });
+			},
+			(error: unknown) => console.info("couldn't look for Airi", error),
 		);
 		void phone.network.packagesByUid().then(
 			(packages) => {
@@ -769,16 +796,24 @@ export class Controller {
 
 	// The desktop
 
-	/** Starts the server, or finds the one that's already running. A phone that can't do it just says why. */
+	/**
+	 * Starts the server, or finds the one that's already running and showing what the source needs: the Pixel's desktop,
+	 * its own screen, or one app. A server showing something else is started again. A phone that can't do it says why.
+	 */
 	private async prepareDesktop() {
 		this.update({ desktop: "starting", desktopProblem: null, desktopStatus: null, hasPicture: false });
 		try {
 			const phone = this.requirePhone();
-			if (await phone.desktop.isServerRunning()) {
+			const mode = shinonomeMode(this.state.source) ?? { kind: "desktop" };
+			const running = await phone.desktop.serverMode();
+			if (running && sameMode(running, mode)) {
 				this.update({ desktop: "connecting" });
 				return;
 			}
-			const output = await phone.desktop.startServer(await this.fetchShinonomeApk(), devDesktopArgs());
+			const output = await phone.desktop.startServer(await this.fetchShinonomeApk(), [
+				...devDesktopArgs(),
+				...modeArgs(mode),
+			]);
 			const problem = serverIncompatibility(output);
 			if (problem) {
 				this.update({ desktop: "unavailable", desktopProblem: problem });
@@ -802,6 +837,7 @@ export class Controller {
 
 	/** The desktop's screen hands over its canvas when it appears. */
 	attachCanvas(canvas: HTMLCanvasElement) {
+		this.canvas = canvas;
 		this.session?.dispose();
 		this.session = new DesktopSession(canvas, {
 			onStatus: (desktopStatus) => this.update({ desktopStatus }),
@@ -886,6 +922,7 @@ export class Controller {
 		this.desktopSocket = null;
 		this.session?.dispose();
 		this.session = null;
+		this.canvas = null;
 	}
 
 	private async openDesktopLink() {
@@ -960,17 +997,25 @@ export class Controller {
 		}
 	}
 
-	/** Shows the Pixel's desktop or a machine. The Pixel's desktop keeps running on the phone while it's not shown. */
+	/**
+	 * Shows the Pixel's desktop, its screen, one app, or a machine. Shinonome shows one of the first three at a time, so
+	 * switching between them starts it again; while a machine is shown, what Shinonome had keeps running on the phone.
+	 */
 	chooseSource(source: Source) {
 		const current = this.state.source;
 		if (JSON.stringify(current) === JSON.stringify(source)) return;
 		this.closeMachine();
-		if (source.kind === "pixel") {
-			this.update({ source, machineView: null, machineMessage: null });
+		if (shinonomeMode(source)) {
+			this.update({ source, machineView: null, machineMessage: null, appsFrom: null });
+			this.desktopJob++;
+			void this.desktopSocket?.close();
+			this.desktopSocket = null;
+			// A fresh session for what's shown next, so it says when its first picture arrives.
+			if (this.canvas) this.attachCanvas(this.canvas);
 			void this.restartDesktop();
 			return;
 		}
-		if (current.kind === "pixel") {
+		if (shinonomeMode(current)) {
 			// Let go of the Pixel's desktop link, so its video doesn't stream to a hidden canvas.
 			this.desktopJob++;
 			void this.desktopSocket?.close();
@@ -979,6 +1024,46 @@ export class Controller {
 			this.update({ desktop: "connecting", hasPicture: false, desktopStats: null });
 		}
 		this.update({ source, machineView: "starting", machineMessage: null });
+	}
+
+	// One Linux app at a time
+
+	/** Opens the "One Linux app" dialog on one place's apps, and lists them. A machine is started for it if need be. */
+	async openApps(from: AppsFrom) {
+		const phone = this.phone;
+		if (!phone) return;
+		this.update({ appsFrom: from, linuxApps: null, linuxAppsProblem: null, linuxAppsStatus: null });
+		const live = () => this.phone === phone && JSON.stringify(this.state.appsFrom) === JSON.stringify(from);
+		try {
+			if (from.kind === "machine") {
+				await readyForAiri(
+					phone,
+					from.vm,
+					(linuxAppsStatus) => live() && this.update({ linuxAppsStatus }),
+					live,
+				);
+			}
+			if (!live()) return;
+			this.update({ linuxAppsStatus: "Asking Airi for the apps." });
+			const apps = await listLinuxApps(phone);
+			if (!live()) return;
+			this.update({
+				linuxApps: apps.sort((a, b) => a.name.localeCompare(b.name)),
+				linuxAppsStatus: null,
+				linuxAppsProblem:
+					apps.length > 0
+						? null
+						: from.kind === "terminal"
+							? "Linux isn't running. Open Airi on the phone once to start it, then try again."
+							: `Airi didn't find any apps in ${from.name}.`,
+			});
+		} catch (error) {
+			if (live()) this.update({ linuxAppsStatus: null, linuxAppsProblem: message(error) });
+		}
+	}
+
+	closeApps() {
+		this.update({ appsFrom: null });
 	}
 
 	/** The machine's screen hands over its canvas, or its console's element, when it appears. */
@@ -1031,6 +1116,11 @@ export class Controller {
 			launchStage: null,
 			source: { kind: "pixel" },
 			minoriInstalled: false,
+			airiInstalled: false,
+			appsFrom: null,
+			linuxApps: null,
+			linuxAppsStatus: null,
+			linuxAppsProblem: null,
 			machines: null,
 			machineView: null,
 			machineMessage: null,
