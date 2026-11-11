@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { Controller } from "../asahi/controller";
-import { AppBar, Footer } from "./Brand";
+import { AppBar } from "./Brand";
 import { Live } from "./Live";
 import { Onboarding } from "./Onboarding";
 
@@ -14,7 +14,6 @@ export function App() {
 		<div className="app">
 			<AppBar logo="./logo.webp" />
 			<Onboarding controller={controller} state={state} />
-			<Footer />
 		</div>
 	);
 }
