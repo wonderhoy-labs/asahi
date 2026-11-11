@@ -219,8 +219,8 @@ importers:
         specifier: 3.14.26
         version: 3.14.26(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@wonderhoy-labs/minori':
-        specifier: https://github.com/wonderhoy-labs/minori/releases/download/v0.5.0/wonderhoy-labs-minori-0.5.0.tgz
-        version: https://github.com/wonderhoy-labs/minori/releases/download/v0.5.0/wonderhoy-labs-minori-0.5.0.tgz
+        specifier: https://github.com/wonderhoy-labs/minori/releases/download/v0.6.0/wonderhoy-labs-minori-0.6.0.tgz
+        version: https://github.com/wonderhoy-labs/minori/releases/download/v0.6.0/wonderhoy-labs-minori-0.6.0.tgz
       '@wonderhoy-labs/shinonome':
         specifier: https://github.com/wonderhoy-labs/shinonome/releases/download/v0.5.1/wonderhoy-labs-shinonome-0.5.1.tgz
         version: https://github.com/wonderhoy-labs/shinonome/releases/download/v0.5.1/wonderhoy-labs-shinonome-0.5.1.tgz
@@ -692,9 +692,9 @@ packages:
   '@vitest/spy@5.0.5':
     resolution: {integrity: sha512-lwJRExuH417257Q5wv9QYugN9IMJkoxcrKrYxGPQkBzl7wlNpTUxD/5yNX4ESKVUIShKPgkGchYPFMWOOk0wzw==}
 
-  '@wonderhoy-labs/minori@https://github.com/wonderhoy-labs/minori/releases/download/v0.5.0/wonderhoy-labs-minori-0.5.0.tgz':
-    resolution: {integrity: sha512-i/1xGWmmp9AT/8Umiv0gX+Hb63kixmEzhAPGxOnIMYwF0ZWlb8TanWa14q3TrEzVYVIx5INvQimiJu2PRHB/cg==, tarball: https://github.com/wonderhoy-labs/minori/releases/download/v0.5.0/wonderhoy-labs-minori-0.5.0.tgz}
-    version: 0.5.0
+  '@wonderhoy-labs/minori@https://github.com/wonderhoy-labs/minori/releases/download/v0.6.0/wonderhoy-labs-minori-0.6.0.tgz':
+    resolution: {integrity: sha512-efeARmu3pNc2JZJnItnJ3zqKyfqB9r+0gI8A+EmOv+Tz4dEh73snG9LiWTMCbbGa2W90llsMoa5OAtXGyhqgHg==, tarball: https://github.com/wonderhoy-labs/minori/releases/download/v0.6.0/wonderhoy-labs-minori-0.6.0.tgz}
+    version: 0.6.0
 
   '@wonderhoy-labs/shinonome@https://github.com/wonderhoy-labs/shinonome/releases/download/v0.5.1/wonderhoy-labs-shinonome-0.5.1.tgz':
     resolution: {integrity: sha512-WQde0wZ77OTn1L9Hxj/b91tXyz5A/b/z5OyGjltvQkuzHsZe559IWPAYq/wRn89IxMkrJhyY7cc0aiXGObybkg==, tarball: https://github.com/wonderhoy-labs/shinonome/releases/download/v0.5.1/wonderhoy-labs-shinonome-0.5.1.tgz}
@@ -1327,7 +1327,7 @@ snapshots:
 
   '@vitest/spy@5.0.5': {}
 
-  '@wonderhoy-labs/minori@https://github.com/wonderhoy-labs/minori/releases/download/v0.5.0/wonderhoy-labs-minori-0.5.0.tgz': {}
+  '@wonderhoy-labs/minori@https://github.com/wonderhoy-labs/minori/releases/download/v0.6.0/wonderhoy-labs-minori-0.6.0.tgz': {}
 
   '@wonderhoy-labs/shinonome@https://github.com/wonderhoy-labs/shinonome/releases/download/v0.5.1/wonderhoy-labs-shinonome-0.5.1.tgz':
     dependencies:

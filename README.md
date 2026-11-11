@@ -183,6 +183,8 @@ enter it again after a reload. Key-based logins aren't supported.
 Everything here is on a Pixel 10 Pro running Android 17 (build `CP3A.260905.009`, not rooted), with a Mac, except where
 it says an emulator.
 
+**0.4.3's desktop for a Termux machine, on the Pixel through the development server,** with Minori 0.6.0. The chooser offered Debian in Termux under Linux desktop; launching it started the stopped machine and showed its Xfce desktop, and Xfce's Applications menu opened on a click.
+
 **0.4.2's console for a Termux machine, on the Pixel through the development server,** with F-Droid's Termux 0.118.3 and a Debian 13 userland made in Minori 0.5.0. The console filled the tab at 111 columns by 40 rows, a long line wrapped where the tab ends, and making the window smaller made it 75 by 25. Before, it kept the 52 columns of Minori's own console on the phone and long lines wrote over themselves.
 
 **0.4.1's chooser, on the Pixel through the development server.** The Linux app list for an Xfce machine in Minori showed each app's own icon from Airi, and the Android and Linux headings are in normal case. Firefox ESR from that machine opened alone in the tab, drew and answered clicks.

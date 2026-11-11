@@ -3,7 +3,7 @@ import { formatRate, type LogTotals } from "@wonderhoy-labs/shira";
 import { useEffect, useRef, useState } from "react";
 import type { AppsFrom as AppsFromPlace, AsahiState, Controller } from "../asahi/controller";
 import type { Machine } from "../asahi/minori";
-import { type MachineSource, machineLabel, SETUP_TITLES, sourceLabel } from "../asahi/sources";
+import { hasDesktop, type MachineSource, machineLabel, SETUP_TITLES, sourceLabel } from "../asahi/sources";
 import { AppsFrom } from "./AppPicker";
 import { SourceIcon } from "./Icons";
 import { NetworkPanel, useLogSnapshot } from "./NetworkPanel";
@@ -323,8 +323,8 @@ function SourceMenu({ controller, state }: Props) {
 		items = machines.flatMap((machine) => {
 			const note = machine.state === "running" ? "" : " · starts it";
 			return [
-				// A desktop goes through Minori's guest agent; a console doesn't need it.
-				machine.agent ? (
+				// Only machines with a desktop offer one; every machine has a console.
+				hasDesktop(machine) ? (
 					<mdui-menu-item key={`${machine.id}-desktop`} onClick={() => pick(machine, "desktop")}>
 						<mdui-icon-computer slot="icon" />
 						{machineLabel(machine)}: desktop{note}

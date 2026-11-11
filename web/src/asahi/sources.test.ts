@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { Machine } from "./minori";
-import { availability, type Capabilities, parseSource, setupOf, shinonomeMode, sourceLabel } from "./sources";
+import {
+	availability,
+	type Capabilities,
+	hasDesktop,
+	parseSource,
+	setupOf,
+	shinonomeMode,
+	sourceLabel,
+} from "./sources";
 
 const machine = (id: string, agent: boolean): Machine =>
 	({ id, name: id, agent, state: "stopped", airi: false }) as unknown as Machine;
@@ -76,5 +84,16 @@ describe("availability", () => {
 		expect(availability("linux-desktop", phone({ minoriInstalled: true, machines: [machine("b", true)] })).ok).toBe(
 			true,
 		);
+	});
+});
+
+describe("hasDesktop", () => {
+	it("takes Minori's word when it says", () => {
+		expect(hasDesktop({ agent: false, desktop: true })).toBe(true);
+		expect(hasDesktop({ agent: true, desktop: false })).toBe(false);
+	});
+	it("goes by the guest agent with Minori before 0.6.0", () => {
+		expect(hasDesktop({ agent: true })).toBe(true);
+		expect(hasDesktop({ agent: false })).toBe(false);
 	});
 });
