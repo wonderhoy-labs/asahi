@@ -27,7 +27,7 @@ import type { AdbSocket } from "@yume-chan/adb";
 import type { AdbDaemonWebUsbDevice } from "@yume-chan/adb-daemon-webusb";
 import type { Phone, PhoneKind } from "../adb/phone";
 import { authorizeUsb, claimUsb, knownPhone, pickPhone, UsbBusyError, type UsbConnection } from "../adb/usb";
-import { airiKnowsMachines, hasAiri, type LinuxApp, listLinuxApps, machineSource } from "./airi";
+import { airiKnowsMachines, hasAiri, type LinuxApp, linuxAppIcon, listLinuxApps, machineSource } from "./airi";
 import { hasMinori, listMachines, type Machine, MachineView, type MachineViewState, readyForAiri } from "./minori";
 import {
 	availability,
@@ -117,6 +117,8 @@ export interface AsahiState {
 	androidAppsProblem: string | null;
 	/** Those apps, once listed, and what's happening while they aren't. */
 	linuxApps: LinuxApp[] | null;
+	/** Icons of [linuxApps] by desktop file, as `data:` addresses, filled in as they arrive; null where Linux has none. */
+	linuxAppIcons: Record<string, string | null>;
 	linuxAppsStatus: string | null;
 	linuxAppsProblem: string | null;
 	/** Whether Minori is on the phone. Without it there's nothing to pick, and the page looks as it always did. */
@@ -185,6 +187,8 @@ const USB_RESET_MILLIS = 1_500;
 const MACHINES_TIMEOUT_MILLIS = 20_000;
 /** How long a machine that has just started gets for Airi's agent in it to answer. */
 const AIRI_AGENT_WAIT_MILLIS = 30_000;
+/** How many icons to ask Airi for at once; each is an adb shell, and Airi asks Linux for each. */
+const LINUX_ICON_FETCHES = 4;
 const AIRI_AGENT_POLL_MILLIS = 2_000;
 
 function stored(key: string): string {
@@ -336,6 +340,7 @@ export class Controller {
 		androidApps: null,
 		androidAppsProblem: null,
 		linuxApps: null,
+		linuxAppIcons: {},
 		linuxAppsStatus: null,
 		linuxAppsProblem: null,
 		machines: null,
@@ -1233,7 +1238,13 @@ export class Controller {
 			}
 			return;
 		}
-		this.update({ appsFrom: from, linuxApps: null, linuxAppsProblem: null, linuxAppsStatus: null });
+		this.update({
+			appsFrom: from,
+			linuxApps: null,
+			linuxAppIcons: {},
+			linuxAppsProblem: null,
+			linuxAppsStatus: null,
+		});
 		const live = () => this.phone === phone && JSON.stringify(this.state.appsFrom) === JSON.stringify(from);
 		try {
 			if (from.kind === "machine") {
@@ -1270,9 +1281,23 @@ export class Controller {
 							? "Linux isn't running. Open Airi on the phone once to start it, then try again."
 							: `Airi didn't find any apps in ${from.name}.`,
 			});
+			void this.loadLinuxAppIcons(phone, apps, live);
 		} catch (error) {
 			if (live()) this.update({ linuxAppsStatus: null, linuxAppsProblem: message(error) });
 		}
+	}
+
+	/** Fetches the listed apps' icons from Airi a few at a time, showing each as it comes. */
+	private async loadLinuxAppIcons(phone: Phone, apps: LinuxApp[], live: () => boolean) {
+		const queue = [...apps];
+		const worker = async () => {
+			for (let app = queue.shift(); app && live(); app = queue.shift()) {
+				const icon = await linuxAppIcon(phone, app).catch(() => null);
+				if (!live()) return;
+				this.update({ linuxAppIcons: { ...this.state.linuxAppIcons, [app.desktopId]: icon } });
+			}
+		};
+		await Promise.all(Array.from({ length: LINUX_ICON_FETCHES }, worker));
 	}
 
 	closeApps() {

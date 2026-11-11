@@ -5,6 +5,7 @@ import type { Phone } from "../adb/phone";
 /** Airi's package. */
 export const AIRI_PACKAGE = "com.wonderhoylabs.airi";
 const APPS_URI = "content://com.wonderhoylabs.airi.apps/apps";
+const ICON_URI = "content://com.wonderhoylabs.airi.apps/icon";
 
 /** A Linux app Airi can open, by its desktop file ID. */
 export interface LinuxApp {
@@ -69,6 +70,22 @@ export async function listLinuxApps(phone: Phone): Promise<LinuxApp[]> {
 		throw new Error(output.trim().split("\n")[0] ?? "Airi didn't answer.");
 	}
 	return parseLinuxApps(output);
+}
+
+/** The address of an app's icon in Airi's provider. Airi before 0.4.0 takes no `source`, and only knows the terminal. */
+export function linuxAppIconUri(app: Pick<LinuxApp, "desktopId" | "source">): string {
+	const icon = `${ICON_URI}/${encodeURIComponent(app.desktopId)}`;
+	return app.source === "terminal" ? icon : `${icon}?source=${encodeURIComponent(app.source)}`;
+}
+
+/**
+ * An app's icon as Airi sends it, a PNG from Linux, as a `data:` address for an `<img>`. Null when Linux has none for
+ * it. adb's shell carries text, so the phone sends it as base64.
+ */
+export async function linuxAppIcon(phone: Phone, app: Pick<LinuxApp, "desktopId" | "source">): Promise<string | null> {
+	const output = (await phone.shell(`content read --uri '${linuxAppIconUri(app)}' 2>/dev/null | base64 -w 0`)).trim();
+	// A PNG starts with \x89PNG, which is iVBOR in base64. Anything else is Airi saying it has no icon.
+	return output.startsWith("iVBOR") ? `data:image/png;base64,${output}` : null;
 }
 
 /** Airi's link for an app in Android's terminal. */

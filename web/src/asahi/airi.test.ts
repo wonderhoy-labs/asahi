@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { airiLink, machineAppLink, machineSource, parseLinuxApps } from "./airi";
+import { airiLink, linuxAppIconUri, machineAppLink, machineSource, parseLinuxApps } from "./airi";
 
 describe("Airi's apps", () => {
 	it("reads Airi 0.3.0's rows, names last", () => {
@@ -51,5 +51,18 @@ describe("Airi's apps", () => {
 		expect(airiLink("foot.desktop")).toBe("airi://app/foot.desktop");
 		expect(machineAppLink("fec9d22a", "foot.desktop")).toBe("minori://vm/fec9d22a/app/foot.desktop");
 		expect(machineSource("fec9d22a")).toBe("minori:fec9d22a");
+	});
+});
+
+describe("linuxAppIconUri", () => {
+	it("leaves out the source for the terminal, which every Airi knows", () => {
+		expect(linuxAppIconUri({ desktopId: "org.gnome.Calculator.desktop", source: "terminal" })).toBe(
+			"content://com.wonderhoylabs.airi.apps/icon/org.gnome.Calculator.desktop",
+		);
+	});
+	it("names a Minori machine's source", () => {
+		expect(linuxAppIconUri({ desktopId: "firefox-esr.desktop", source: "minori:ab5f" })).toBe(
+			"content://com.wonderhoylabs.airi.apps/icon/firefox-esr.desktop?source=minori%3Aab5f",
+		);
 	});
 });
