@@ -4,7 +4,7 @@
 
 <h1 align="center">Asahi</h1>
 
-<p align="center">Use your phone, its apps and its Linux machines from a browser tab, online through one cable.</p>
+<p align="center">Your whole phone in a browser tab: Android's desktop, screen and apps, Linux apps and machines, online through one USB cable</p>
 
 <p align="center">
   <a href="https://github.com/wonderhoy-labs/asahi/actions/workflows/ci.yml"><img src="https://github.com/wonderhoy-labs/asahi/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
