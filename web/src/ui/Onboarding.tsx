@@ -106,7 +106,9 @@ function Hero() {
 					One Linux app from Airi, or a Minori machine's desktop or console, right beside Android.
 				</Feature>
 				<Feature icon={<mdui-icon-public />} title="Internet over USB">
-					Your phone's traffic goes down the cable and out through a Wisp server you choose.
+					{computerRouteAvailable
+						? "Your phone's traffic goes down the cable and out through this computer, or a Wisp server you choose."
+						: "Your phone's traffic goes down the cable and out through a Wisp server you choose."}
 				</Feature>
 				<Feature icon={<mdui-icon-usb />} title="Only USB debugging">
 					No root, no adb and no drivers. Chrome or Edge on any computer will do.
