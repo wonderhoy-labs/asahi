@@ -2,7 +2,26 @@ import shiraApkUrl from "@wonderhoy-labs/shira/shira.apk?url";
 import { type ReactNode, useEffect, useRef, useState } from "react";
 import { isUsbAvailable } from "../adb/usb";
 import { SHIRA_RELEASES_URL } from "../asahi/constants";
-import { type AsahiState, type Controller, type LaunchStage, SETUP_STEPS, type Step } from "../asahi/controller";
+import {
+	type AsahiState,
+	type Controller,
+	capabilities,
+	type LaunchStage,
+	readyToLaunch,
+	SETUP_STEPS,
+	type Step,
+} from "../asahi/controller";
+import {
+	availability,
+	machineLabel,
+	machinesFor,
+	SETUP_TITLES,
+	type Setup,
+	type Source,
+	setupOf,
+} from "../asahi/sources";
+import { AppsFrom } from "./AppPicker";
+import { SetupIcon } from "./Icons";
 
 interface Props {
 	controller: Controller;
@@ -45,7 +64,7 @@ export function Onboarding({ controller, state }: Props) {
 					>
 						<AppStep controller={controller} state={state} />
 					</StepItem>
-					<StepItem step="launch" state={state} title="Launch" summary={null}>
+					<StepItem step="launch" state={state} title="Choose and launch" summary={null}>
 						<LaunchStep controller={controller} state={state} />
 					</StepItem>
 				</ol>
@@ -68,14 +87,19 @@ function Hero() {
 			<div className="hero-art">
 				<img src="./logo.webp" alt="" width={136} height={136} />
 			</div>
-			<h1>Your Pixel's desktop, online through one cable</h1>
+			<h1>Your whole phone, in a browser tab</h1>
 			<p className="hero-lead">
-				Asahi puts your phone's desktop in this browser tab, and gets the phone online through it, even with
-				Wi-Fi and mobile data turned off. There's nothing to install on this computer.
+				Asahi lets you use your phone from this tab: Android's desktop or its own screen, any of its apps, and
+				the Linux apps and machines it runs. The phone gets online through the same cable, even with Wi-Fi and
+				mobile data turned off. There's nothing to install on this computer.
 			</p>
 			<ul className="features">
-				<Feature icon={<mdui-icon-desktop-windows />} title="The desktop in your browser">
-					Android's own desktop mode, with windows and a taskbar, driven by your mouse and keyboard.
+				<Feature icon={<mdui-icon-smartphone />} title="Android, your way">
+					Android's desktop mode with windows and a taskbar, the phone's own screen, or one app alone, with
+					your mouse and keyboard.
+				</Feature>
+				<Feature icon={<mdui-icon-terminal />} title="Linux too">
+					One Linux app from Airi, or a Minori machine's desktop or console, right beside Android.
 				</Feature>
 				<Feature icon={<mdui-icon-public />} title="Internet over USB">
 					Your phone's traffic goes down the cable and out through a Wisp server you choose.
@@ -455,57 +479,90 @@ function AppStatus({ state }: { state: AsahiState }) {
 	);
 }
 
-const LAUNCH_ITEMS: { stage: LaunchStage; icon: ReactNode; title: string; text: (state: AsahiState) => string }[] = [
-	{
-		stage: "network",
-		icon: <mdui-icon-public />,
-		title: "Turn on the network",
-		text: (state) =>
-			`Gives Asahi Android's VPN permission through USB debugging, the same as tapping OK on the phone, and connects it to ${state.serverLabel ?? "your server"}.`,
-	},
-	{
-		stage: "desktop",
-		icon: <mdui-icon-desktop-windows />,
-		title: "Start the desktop",
-		text: () =>
-			"Your phone's screen turns off while you use it from here. It stays unlocked underneath until you end the session.",
-	},
+/** What each kind of thing to show is, in a line, for the cards that pick one. */
+const SETUP_TEXT: Record<Setup, string> = {
+	"android-desktop": "Android's desktop mode, with windows and a taskbar.",
+	"android-screen": "Your phone's own screen, mirrored, with your mouse and keyboard.",
+	"android-app": "One of your phone's apps on its own, filling the tab.",
+	"linux-app": "One Linux app on its own, from Airi or a Minori machine.",
+	"linux-desktop": "A Minori machine's whole desktop.",
+	"linux-console": "A Minori machine's text console.",
+};
+
+const SETUP_GROUPS: { title: string; setups: Setup[] }[] = [
+	{ title: "Android", setups: ["android-desktop", "android-screen", "android-app"] },
+	{ title: "Linux", setups: ["linux-app", "linux-desktop", "linux-console"] },
 ];
+
+/** What starting the picked thing does, as the second line of the launch list. */
+function showItem(source: Source): { title: string; text: string } {
+	const screenOff =
+		"Your phone's screen turns off while you use it from here. It stays unlocked underneath until you end the session.";
+	switch (source.kind) {
+		case "desktop":
+			return { title: "Start the desktop", text: screenOff };
+		case "screen":
+			return { title: "Mirror the screen", text: "Your phone's screen stays on and shows the same as this tab." };
+		case "android-app":
+			return { title: `Open ${source.name}`, text: `On a display of its own. ${screenOff}` };
+		case "linux-app":
+			return { title: `Open ${source.name}`, text: `Airi opens it on a display of its own. ${screenOff}` };
+		case "machine":
+			return {
+				title: `Open ${source.name}'s ${source.view}`,
+				text: "Minori starts the machine first if it isn't running, which can take a minute.",
+			};
+	}
+}
 
 function LaunchStep({ controller, state }: Props) {
 	const running = state.launchStage !== null;
-	const stageIndex = LAUNCH_ITEMS.findIndex((item) => item.stage === state.launchStage);
+	const ready = readyToLaunch(state);
+	const show = showItem(state.source);
+	const items: { stage: LaunchStage; icon: ReactNode; title: string; text: string }[] = [
+		{
+			stage: "network",
+			icon: <mdui-icon-public />,
+			title: "Turn on the network",
+			text: `Gives Asahi Android's VPN permission through USB debugging, the same as tapping OK on the phone, and connects it to ${state.serverLabel ?? "your server"}.`,
+		},
+		{ stage: "desktop", icon: <SetupIcon setup={setupOf(state.source)} />, ...show },
+	];
+	const stageIndex = items.findIndex((item) => item.stage === state.launchStage);
 	return (
 		<>
 			{state.serverMessage ? <p className="motd">{state.serverMessage}</p> : null}
-			<ul className="launch-list">
-				{LAUNCH_ITEMS.map((item, index) => {
-					const status = !running
-						? "todo"
-						: index < stageIndex
-							? "done"
-							: index === stageIndex
-								? "doing"
-								: "todo";
-					return (
-						<li key={item.stage} className={`launch-item launch-item-${status}`}>
-							<span className="launch-icon">
-								{status === "done" ? (
-									<mdui-icon-check />
-								) : status === "doing" ? (
-									<mdui-circular-progress />
-								) : (
-									item.icon
-								)}
-							</span>
-							<span>
-								<strong>{item.title}</strong>
-								<span className="launch-text">{item.text(state)}</span>
-							</span>
-						</li>
-					);
-				})}
-			</ul>
+			<SourceChooser controller={controller} state={state} disabled={running} />
+			{ready ? (
+				<ul className="launch-list">
+					{items.map((item, index) => {
+						const status = !running
+							? "todo"
+							: index < stageIndex
+								? "done"
+								: index === stageIndex
+									? "doing"
+									: "todo";
+						return (
+							<li key={item.stage} className={`launch-item launch-item-${status}`}>
+								<span className="launch-icon">
+									{status === "done" ? (
+										<mdui-icon-check />
+									) : status === "doing" ? (
+										<mdui-circular-progress />
+									) : (
+										item.icon
+									)}
+								</span>
+								<span>
+									<strong>{item.title}</strong>
+									<span className="launch-text">{item.text}</span>
+								</span>
+							</li>
+						);
+					})}
+				</ul>
+			) : null}
 			{running && state.busy ? <Waiting text={state.busy} /> : null}
 			<div className="actions">
 				{running ? (
@@ -513,13 +570,189 @@ function LaunchStep({ controller, state }: Props) {
 						Cancel
 					</mdui-button>
 				) : (
-					<mdui-button variant="filled" className="launch-button" onClick={() => void controller.launch()}>
-						<mdui-icon-rocket-launch slot="icon" />
-						Launch
-					</mdui-button>
+					<>
+						<mdui-button
+							variant="filled"
+							className="launch-button"
+							disabled={!ready}
+							onClick={() => void controller.launch()}
+						>
+							<mdui-icon-rocket-launch slot="icon" />
+							Launch
+						</mdui-button>
+						{ready ? null : <span className="note">{notReadyNote(state)}</span>}
+					</>
 				)}
 			</div>
 		</>
+	);
+}
+
+function notReadyNote(state: AsahiState): string {
+	const check = availability(state.setup, capabilities(state));
+	if (!check.ok) return check.checking ? check.reason : "Pick something this phone can show.";
+	switch (state.setup) {
+		case "android-app":
+		case "linux-app":
+			return "Pick an app to show.";
+		default:
+			return "Pick a machine.";
+	}
+}
+
+/**
+ * The six kinds of thing the tab can show, as cards, with whatever has to be picked for the chosen one underneath.
+ * Ones this phone can't do say why. The last choice comes back next time.
+ */
+function SourceChooser({ controller, state, disabled }: Props & { disabled: boolean }) {
+	const phone = capabilities(state);
+	return (
+		<section className="chooser" aria-labelledby="chooser-title">
+			<h3 id="chooser-title" className="chooser-title">
+				What do you want to see?
+			</h3>
+			{SETUP_GROUPS.map((group) => (
+				<fieldset key={group.title} className="choice-group" disabled={disabled}>
+					<legend className="choice-legend">{group.title}</legend>
+					<div className="choice-grid">
+						{group.setups.map((setup) => {
+							const check = availability(setup, phone);
+							const selected = state.setup === setup;
+							return (
+								<label
+									key={setup}
+									className={`choice ${selected ? "choice-selected" : ""} ${check.ok ? "" : "choice-unavailable"}`}
+								>
+									<input
+										type="radio"
+										name="setup"
+										className="choice-input"
+										checked={selected}
+										disabled={!check.ok}
+										onChange={() => controller.pickSetup(setup)}
+									/>
+									<span className="choice-icon">
+										<SetupIcon setup={setup} />
+									</span>
+									<span className="choice-title">{SETUP_TITLES[setup]}</span>
+									<span className="choice-text" title={check.ok ? undefined : check.reason}>
+										{check.ok ? (
+											SETUP_TEXT[setup]
+										) : (
+											<>
+												{check.checking ? (
+													<mdui-circular-progress className="choice-spinner" />
+												) : null}
+												{check.reason}
+											</>
+										)}
+									</span>
+									{selected ? <mdui-icon-check-circle className="choice-check" /> : null}
+								</label>
+							);
+						})}
+					</div>
+					{group.title === "Linux" && state.minoriInstalled && state.machinesProblem ? (
+						<mdui-button
+							variant="text"
+							className="choice-retry"
+							onClick={() => void controller.loadMachines()}
+						>
+							<mdui-icon-refresh slot="icon" />
+							Ask Minori again
+						</mdui-button>
+					) : null}
+				</fieldset>
+			))}
+			{availability(state.setup, phone).ok ? (
+				<SetupDetail controller={controller} state={state} setup={state.setup} />
+			) : null}
+		</section>
+	);
+}
+
+/** What has to be picked for a kind of thing: an app, where a Linux app comes from, or a machine. */
+function SetupDetail({ controller, state, setup }: Props & { setup: Setup }) {
+	const { source } = state;
+	if (setup === "android-app") {
+		return (
+			<div className="choice-detail">
+				<PickedNote source={source} setup={setup} />
+				<AppsFrom controller={controller} state={state} from={{ kind: "android" }} />
+			</div>
+		);
+	}
+	if (setup === "linux-app") {
+		const from = state.appsFrom?.kind === "terminal" || state.appsFrom?.kind === "machine" ? state.appsFrom : null;
+		const machines = (state.machines ?? []).filter((machine) => machine.airi);
+		return (
+			<div className="choice-detail">
+				{machines.length > 0 ? (
+					<div className="place-chips" role="radiogroup" aria-label="Where the app runs">
+						<mdui-chip
+							variant="filter"
+							selected={from?.kind === "terminal"}
+							onClick={() => void controller.openApps({ kind: "terminal" })}
+						>
+							Android's terminal
+						</mdui-chip>
+						{machines.map((machine) => (
+							<mdui-chip
+								key={machine.id}
+								variant="filter"
+								selected={from?.kind === "machine" && from.vm === machine.id}
+								onClick={() =>
+									void controller.openApps({ kind: "machine", vm: machine.id, name: machine.name })
+								}
+							>
+								{machineLabel(machine)}
+								{machine.state === "running" ? "" : " (starts it)"}
+							</mdui-chip>
+						))}
+					</div>
+				) : null}
+				<PickedNote source={source} setup={setup} />
+				{from ? <AppsFrom controller={controller} state={state} from={from} /> : null}
+			</div>
+		);
+	}
+	if (setup === "linux-desktop" || setup === "linux-console") {
+		const machines = machinesFor(setup, state.machines ?? []);
+		const view = setup === "linux-desktop" ? "desktop" : "console";
+		return (
+			<div className="choice-detail">
+				<div className="place-chips" role="radiogroup" aria-label="Machine">
+					{machines.map((machine) => (
+						<mdui-chip
+							key={machine.id}
+							variant="filter"
+							selected={source.kind === "machine" && source.vm === machine.id}
+							onClick={() =>
+								controller.chooseSource({ kind: "machine", vm: machine.id, name: machine.name, view })
+							}
+						>
+							<mdui-icon-computer slot="icon" />
+							{machineLabel(machine)}
+							{machine.state === "running" ? "" : " · starts it"}
+						</mdui-chip>
+					))}
+				</div>
+			</div>
+		);
+	}
+	return null;
+}
+
+/** The app that's picked, which may be from last time and not in the list being shown. */
+function PickedNote({ source, setup }: { source: Source; setup: Setup }) {
+	if (setupOf(source) !== setup || (source.kind !== "android-app" && source.kind !== "linux-app")) return null;
+	return (
+		<p className="picked-note">
+			<mdui-icon-check-circle />
+			<span>
+				<strong>{source.name}</strong> is picked.
+			</span>
+		</p>
 	);
 }
 

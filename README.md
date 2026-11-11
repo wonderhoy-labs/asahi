@@ -4,7 +4,7 @@
 
 <h1 align="center">Asahi</h1>
 
-<p align="center">Your Pixel's desktop in a browser tab, online through the same cable.</p>
+<p align="center">Use your phone, its apps and its Linux machines from a browser tab, online through one cable.</p>
 
 <p align="center">
   <a href="https://github.com/wonderhoy-labs/asahi/actions/workflows/ci.yml"><img src="https://github.com/wonderhoy-labs/asahi/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
@@ -12,15 +12,16 @@
   <a href="#license-and-credits"><img src="https://img.shields.io/badge/Asahina%20Mafuyu-25--ji%2C%20Nightcord%20de.-8888CC" alt="Named for Asahina Mafuyu of 25-ji, Nightcord de."></a>
 </p>
 
-Asahi puts your phone's desktop in a web page, and gets the phone online through that same page. You plug your phone into a
-computer, open the page in Chrome, and use Android's own desktop mode with your mouse and keyboard, while everything the phone
-does goes down the cable and out through a [Wisp](https://github.com/MercuryWorkshop/wisp-protocol) server. It works with the
-phone's Wi-Fi and mobile data turned off.
+Asahi lets you use your whole phone from a web page. Plug it into a computer, open the page in Chrome, and pick what you want
+to see: Android's own desktop mode, the phone's screen, any one of its apps, or the Linux apps and machines it runs through
+[Airi](https://github.com/wonderhoy-labs/airi) and [Minori](https://github.com/wonderhoy-labs/minori), all with your mouse and
+keyboard. Meanwhile everything the phone does goes down the cable and out through a
+[Wisp](https://github.com/MercuryWorkshop/wisp-protocol) server, so it works with the phone's Wi-Fi and mobile data turned off.
 
-There's no root on the phone, and no `adb`, drivers or anything else on the computer. It's
-[Shira](https://github.com/wonderhoy-labs/shira) and [Shinonome](https://github.com/wonderhoy-labs/shinonome) in one page, built
-on their libraries: Shira's app gives the phone its network, and Shinonome's server, which runs without installing anything,
-gives it its desktop.
+There's no root on the phone, and no `adb`, drivers or anything else on the computer. Asahi is the Wonderhoy Labs projects'
+web front, built on their libraries: [Shira](https://github.com/wonderhoy-labs/shira)'s app gives the phone its network,
+[Shinonome](https://github.com/wonderhoy-labs/shinonome)'s server, which runs without installing anything, shows Android, and
+Minori's helper shows its machines.
 
 ![Asahi in Chrome, showing a Pixel's desktop with two windows open](docs/screenshot.webp)
 
@@ -39,7 +40,7 @@ gives it its desktop.
 
 ## Use it
 
-Open **<https://wonderhoy-labs.github.io/asahi/>** and follow the five steps. Nothing happens to your phone until you click
+Open **<https://wonderhoy-labs.github.io/asahi/>** and follow the five steps, the last of which is choosing what to show. Nothing happens to your phone until you click
 something.
 
 ![Asahi's setup page, at the step for picking a Wisp server](docs/onboarding.webp)
@@ -54,7 +55,10 @@ something.
    myself** gives you the APK and notices when it's on the phone, and **Check again** looks again. If it's already current,
    **Continue** carries on. You can also get it from [Shira's releases](https://github.com/wonderhoy-labs/shira/releases). The
    desktop needs nothing installed.
-5. **Launch.** This turns on the network, connects it to your server, starts the desktop and opens it. Shira gets Android's VPN
+5. **Choose and launch.** Pick what to show from six cards (Android desktop, Android screen, Android app, Linux app, Linux
+   desktop and Linux console), and the app or machine if it needs one. Cards for what your phone can't do say why, such as a
+   phone without desktop windows or without Airi or Minori. The page remembers your choice for next time. **Launch** turns on
+   the network, connects it to your server, and starts what you picked. Shira gets Android's VPN
    permission through USB debugging, the same as tapping OK on the phone's own dialog.
 
 Then you're in. The bar at the top shows the desktop's frame rate and delay, and the network's speed. Click the network to see
@@ -96,16 +100,20 @@ offers to turn it on, and turning it on restarts those apps with their windows w
 
 ### What the tab shows
 
-The menu at the top left picks what the tab shows, and the network keeps running whichever you pick:
+You choose before **Launch**, and the menu at the top left switches later. The network keeps running whichever you pick:
 
-- **Pixel desktop**: Android's desktop mode, the usual.
-- **Pixel screen**: your phone's own screen, as it is, the way scrcpy shows it. The phone's screen stays on.
-- **One Linux app**, with [Airi](https://github.com/wonderhoy-labs/airi) 0.3.0 or later on the phone: a list of the Linux apps
-  in Android's terminal. The one you pick fills the tab on its own, and follows the window's size.
-- With [Minori](https://github.com/wonderhoy-labs/minori) on the phone, each of its machines: its desktop, its console, and,
-  when Minori has set Airi up in it, one of its apps alone. Picking a machine starts it if it's stopped.
+- **Android desktop**: Android's desktop mode, the usual. Only offered when the phone can make one; the page asks Shinonome's
+  server before Launch, and shows Android's reason when it can't.
+- **Android screen**: your phone's own screen, as it is, the way scrcpy shows it. The phone's screen stays on.
+- **Android app**: any app on the phone's launcher, picked from a grid of their names and icons with a search box. It runs on
+  a display of its own, fills the tab, and follows the window's size, portrait too.
+- **Linux app**, with [Airi](https://github.com/wonderhoy-labs/airi) 0.3.0 or later on the phone: one of the Linux apps in
+  Android's terminal, or in a Minori machine Airi is set up in, alone in the tab like an Android app.
+- **Linux desktop** and **Linux console**, with [Minori](https://github.com/wonderhoy-labs/minori) on the phone: a machine's
+  desktop, if it has Minori's guest agent, or its console. Picking a machine starts it if it's stopped. Minori's Termux
+  userlands are labelled Termux, and offer their console.
 
-The Pixel's desktop, its screen and one app take turns, so switching between them closes the one before; the desktop's
+Android's desktop, its screen and one app take turns, so switching between them closes the one before; the desktop's
 windows go back to the phone, and one app closes. A machine shows beside them, so what Shinonome had keeps running.
 
 ### The network log
@@ -175,7 +183,29 @@ enter it again after a reload. Key-based logins aren't supported.
 Everything here is on a Pixel 10 Pro running Android 17 (build `CP3A.260905.009`, not rooted), with a Mac, except where
 it says an emulator.
 
-**The source menu, on an Android 17 emulator,** in the development server's page with Shinonome 0.4.0. The emulator can't
+**Asahi 0.4.0's choice of what to show and one Android app,** through the development server's page and its link to `adb`,
+with Shinonome 0.5.0's library built from its branch, and again with the released 0.5.0 and Shira 0.2.2, where the
+Pixel listed 125 apps and showed Clock alone. These ran in the Claude app's browser pane, because the Chrome
+extension wasn't connected; sessions were left by reloading the page, since ending one there has crashed the pane before.
+
+- On an Android 17 emulator, which can't make a desktop: the **Android desktop** card was greyed out with Android's reason
+  ("This device does not support desktop windows…"), and **Android screen** was picked instead. Minori 0.1.1 there never
+  answered, so the Linux cards said so after 20 seconds, with **Ask Minori again**. **Android app** listed 23 apps with their
+  icons; Clock launched alone filling the tab, a click opened its Alarms, and Settings came up the same way from the live
+  view's **One Android app** dialog. A wider tab reshaped Settings to 1920x964.
+- On the Pixel 10 Pro: all six cards were offered, the last choice (Settings) came back picked after a reload, and the
+  grid listed 125 apps. Settings alone took clicks and keys (typing "bat" filtered its search), Google's Calculator gave
+  42 for 7 × 6 =, and a tall 700x900 tab gave Calculator a portrait 1200x1460 display. GNOME Calculator through Airi and
+  the Xfce machine's console worked as before.
+- **The stuck "Waiting for the first picture."** It was reproduced on the Pixel with 0.3.0's code by going from the
+  desktop to the Xfce console and back: re-attaching the canvas opened a link to the old server, whose first frame used up
+  the session's only first-picture event before the new server started. With the fix, on the Pixel, one app → desktop, desktop →
+  Xfce console → screen, screen → Xfce console → desktop, desktop → GNOME Calculator and GNOME Calculator → Google's
+  Calculator each cleared the notice when the new picture arrived, and so did Clock → screen → Settings on the emulator.
+- Not tried: real Chrome or WebUSB for any of this, a Linux desktop or console card launched straight from the onboarding,
+  and Minori's Termux userlands, which need F-Droid's Termux; the Pixel has Google Play's.
+
+ in the development server's page with Shinonome 0.4.0. The emulator can't
 make a desktop, and the page said so. **Pixel screen** showed the emulator's own screen at about 20 frames per second.
 **One Linux app** listed two apps from Airi 0.3.0, which was pointed at a stand-in for its Linux agent, since the emulator
 can't run Linux; picking one restarted Shinonome with just that app, and the tab showed Airi opening it, filling the tab.

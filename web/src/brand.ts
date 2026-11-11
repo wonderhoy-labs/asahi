@@ -4,7 +4,7 @@
 export const brand = {
 	name: "Asahi",
 	id: "asahi",
-	tagline: "Your Pixel's desktop in a browser tab, online through the same cable.",
+	tagline: "Use your phone, its apps and its Linux machines from a browser tab, online through one cable.",
 	character: "Asahina Mafuyu",
 	unit: "25-ji, Nightcord de.",
 	color: "#8888CC",

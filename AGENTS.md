@@ -6,12 +6,12 @@ to Asahi.
 
 ## What Asahi is
 
-Shira and Shinonome in one web page. Over one USB cable and WebUSB, it shows the Pixel's desktop in a browser tab and
-gets the phone online through a Wisp server. It's built on their libraries, `@wonderhoy-labs/shira` and
-`@wonderhoy-labs/shinonome`, and has no Android code of its own: the phone runs Shira's app for the network, and
-Shinonome's server for the desktop, which the page copies to the phone and starts as the shell user without installing
-it. Besides the Pixel's desktop, the tab can show the phone's own screen, one Linux app through Airi, and Minori's
-machines (`@wonderhoy-labs/minori`); `web/src/asahi/sources.ts` lists them. Named for Asahina Mafuyu of 25-ji, Nightcord
+Your whole phone from a web page, over one USB cable and WebUSB: Android's desktop, its screen, any one of its apps, Linux apps
+through Airi and Minori's machines, while the phone gets online through a Wisp server. It's the Wonderhoy Labs projects' web
+front, built on their libraries, `@wonderhoy-labs/shira`, `@wonderhoy-labs/shinonome` and `@wonderhoy-labs/minori`, and has
+no Android code of its own: the phone runs Shira's app for the network, and Shinonome's server, which the page copies to the
+phone and starts as the shell user without installing it. `web/src/asahi/sources.ts` lists what the tab can show and decides
+which the phone can do. Named for Asahina Mafuyu of 25-ji, Nightcord
 de. The site is at <https://wonderhoy-labs.github.io/asahi/>.
 
 ## Layout
@@ -41,7 +41,9 @@ cd web && pnpm test && pnpm build
   exactly the Shira it carries.
 - **wisp-js comes from the fork** `wonderhoy-labs/wisp-js`, pinned by commit in `web/package.json`. Shira's library needs it
   as a peer, because pnpm won't fetch a dependency's git dependencies. Keep the pin the same as Shira's.
-- **The onboarding order is the maintainer's**: USB, allow debugging, Wisp server, install only on request, Launch.
+- **The onboarding order is the maintainer's**: USB, allow debugging, Wisp server, install only on request, Launch. The
+  last step holds the choice of what to show, and only offers what the connected phone can do, saying why for the rest.
+- **Word it as the whole phone, not as Shira plus Shinonome.** The tagline is in `package.json`; `pnpm theme` spreads it.
 - **WebUSB was never tested end to end in a browser**, because Chrome's device chooser needs a human click. Say so
   until someone has.
 - **On the PIN-locked test phone**, set `localStorage['asahi.dev.desktop-args'] = '--screen-on'` for dev sessions,
