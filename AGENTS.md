@@ -52,6 +52,6 @@ cd web && pnpm test && pnpm build
 
 ## Exceptions to the guideline
 
-- The live desktop view fills the whole window and leaves out the shared bar and footer, which come back with the
-  onboarding screen.
+- The live desktop view fills the whole window and leaves out the shared bar, which comes back with the onboarding
+  screen.
 - There's no `android/`, and no library of Asahi's own: it's made of Shira's and Shinonome's.
