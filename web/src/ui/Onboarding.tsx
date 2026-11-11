@@ -11,7 +11,15 @@ import {
 	SETUP_STEPS,
 	type Step,
 } from "../asahi/controller";
-import { availability, machinesFor, SETUP_TITLES, type Setup, type Source, setupOf } from "../asahi/sources";
+import {
+	availability,
+	machineLabel,
+	machinesFor,
+	SETUP_TITLES,
+	type Setup,
+	type Source,
+	setupOf,
+} from "../asahi/sources";
 import { AppsFrom } from "./AppPicker";
 import { SetupIcon } from "./Icons";
 
@@ -79,15 +87,19 @@ function Hero() {
 			<div className="hero-art">
 				<img src="./logo.webp" alt="" width={136} height={136} />
 			</div>
-			<h1>Your Pixel's desktop, online through one cable</h1>
+			<h1>Your whole phone, in a browser tab</h1>
 			<p className="hero-lead">
-				Asahi puts your phone's desktop in this browser tab, and gets the phone online through it, even with
-				Wi-Fi and mobile data turned off. There's nothing to install on this computer.
+				Asahi lets you use your phone from this tab: Android's desktop or its own screen, any of its apps, and
+				the Linux apps and machines it runs. The phone gets online through the same cable, even with Wi-Fi and
+				mobile data turned off. There's nothing to install on this computer.
 			</p>
 			<ul className="features">
-				<Feature icon={<mdui-icon-desktop-windows />} title="The desktop in your browser">
-					Android's desktop mode, the phone's own screen, one app, or a Linux machine, driven by your mouse
-					and keyboard.
+				<Feature icon={<mdui-icon-smartphone />} title="Android, your way">
+					Android's desktop mode with windows and a taskbar, the phone's own screen, or one app alone, with
+					your mouse and keyboard.
+				</Feature>
+				<Feature icon={<mdui-icon-terminal />} title="Linux too">
+					One Linux app from Airi, or a Minori machine's desktop or console, right beside Android.
 				</Feature>
 				<Feature icon={<mdui-icon-public />} title="Internet over USB">
 					Your phone's traffic goes down the cable and out through a Wisp server you choose.
@@ -693,7 +705,7 @@ function SetupDetail({ controller, state, setup }: Props & { setup: Setup }) {
 									void controller.openApps({ kind: "machine", vm: machine.id, name: machine.name })
 								}
 							>
-								{machine.name}
+								{machineLabel(machine)}
 								{machine.state === "running" ? "" : " (starts it)"}
 							</mdui-chip>
 						))}
@@ -720,7 +732,7 @@ function SetupDetail({ controller, state, setup }: Props & { setup: Setup }) {
 							}
 						>
 							<mdui-icon-computer slot="icon" />
-							{machine.name}
+							{machineLabel(machine)}
 							{machine.state === "running" ? "" : " · starts it"}
 						</mdui-chip>
 					))}

@@ -178,3 +178,8 @@ export function availability(setup: Setup, phone: Capabilities): Availability {
 export function machinesFor(setup: "linux-desktop" | "linux-console", machines: Machine[]): Machine[] {
 	return setup === "linux-desktop" ? machines.filter((machine) => machine.agent) : machines;
 }
+
+/** A machine's name as the menus show it. Termux userlands aren't VMs, and Minori labels them Termux everywhere. */
+export function machineLabel(machine: Pick<Machine, "name" | "backend">): string {
+	return machine.backend === "termux" ? `${machine.name} (Termux)` : machine.name;
+}

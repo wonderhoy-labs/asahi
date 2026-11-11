@@ -29,7 +29,7 @@
 		"@tanstack/react-virtual": "3.14.26",
 		"@wonderhoy-labs/minori": "https://github.com/wonderhoy-labs/minori/releases/download/v0.2.0/wonderhoy-labs-minori-0.2.0.tgz",
 		"@wonderhoy-labs/shinonome": "link:../../shinonome-apps/packages/shinonome",
-		"@wonderhoy-labs/shira": "https://github.com/wonderhoy-labs/shira/releases/download/v0.2.1/wonderhoy-labs-shira-0.2.1.tgz",
+		"@wonderhoy-labs/shira": "https://github.com/wonderhoy-labs/shira/releases/download/v0.2.2/wonderhoy-labs-shira-0.2.2.tgz",
 		"@xterm/xterm": "5.5.0",
 		"@yume-chan/adb": "2.6.4",
 		"@yume-chan/adb-credential-web": "2.1.0",

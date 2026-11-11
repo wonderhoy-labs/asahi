@@ -38,7 +38,8 @@ export function AppPicker({ apps, selected, onPick, fallbackIcon, label }: Props
 				<mdui-text-field
 					className="app-search"
 					variant="outlined"
-					label={`Search ${apps.length} apps`}
+					placeholder={`Search ${apps.length} apps`}
+					aria-label="Search apps"
 					value={query}
 					clearable
 					onInput={(event: React.FormEvent<HTMLElement>) =>
@@ -114,7 +115,15 @@ export function AppsFrom({
 		return (
 			<AppPicker
 				label="Android apps"
-				apps={apps.map((app) => ({ key: app.component, name: app.name, icon: app.icon }))}
+				apps={apps.map((app) => ({
+					key: app.component,
+					name: app.name,
+					icon: app.icon,
+					// Two apps can share a name, such as Google's Calculator and Airi's GNOME one, so their packages tell them apart.
+					detail: apps.some((other) => other !== app && other.name === app.name)
+						? app.packageName
+						: undefined,
+				}))}
 				selected={source.kind === "android-app" ? source.component : null}
 				fallbackIcon={<mdui-icon-android />}
 				onPick={(component) => {

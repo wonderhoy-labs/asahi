@@ -3,7 +3,7 @@ import { formatRate, type LogTotals } from "@wonderhoy-labs/shira";
 import { useEffect, useRef, useState } from "react";
 import type { AppsFrom as AppsFromPlace, AsahiState, Controller } from "../asahi/controller";
 import type { Machine } from "../asahi/minori";
-import { type MachineSource, SETUP_TITLES, sourceLabel } from "../asahi/sources";
+import { type MachineSource, machineLabel, SETUP_TITLES, sourceLabel } from "../asahi/sources";
 import { AppsFrom } from "./AppPicker";
 import { SourceIcon } from "./Icons";
 import { NetworkPanel, useLogSnapshot } from "./NetworkPanel";
@@ -176,7 +176,11 @@ function TopBar({ controller, state, totals, panelOpen, onTogglePanel, canvas }:
 			<SourceMenu controller={controller} state={state} />
 			{state.appsFrom ? <AppsDialog controller={controller} state={state} from={state.appsFrom} /> : null}
 			{state.source.kind === "machine" ? (
-				<StatusChip light={machineLight(state)} icon={<mdui-icon-computer />} label={machineLabel(state)} />
+				<StatusChip
+					light={machineLight(state)}
+					icon={<mdui-icon-computer />}
+					label={machineStatusLabel(state)}
+				/>
 			) : (
 				<StatusChip
 					light={desktopLight(state)}
@@ -323,12 +327,12 @@ function SourceMenu({ controller, state }: Props) {
 				machine.agent ? (
 					<mdui-menu-item key={`${machine.id}-desktop`} onClick={() => pick(machine, "desktop")}>
 						<mdui-icon-computer slot="icon" />
-						{machine.name}: desktop{note}
+						{machineLabel(machine)}: desktop{note}
 					</mdui-menu-item>
 				) : null,
 				<mdui-menu-item key={`${machine.id}-console`} onClick={() => pick(machine, "console")}>
 					<mdui-icon-terminal slot="icon" />
-					{machine.name}: console{note}
+					{machineLabel(machine)}: console{note}
 				</mdui-menu-item>,
 				// Airi shows a machine's apps once Minori has set Airi up in it.
 				machine.airi && airiInstalled ? (
@@ -339,7 +343,7 @@ function SourceMenu({ controller, state }: Props) {
 						}
 					>
 						<mdui-icon-web-asset slot="icon" />
-						{machine.name}: one app{note}
+						{machineLabel(machine)}: one app{note}
 					</mdui-menu-item>
 				) : null,
 			];
@@ -489,7 +493,7 @@ function machineLight({ machineView }: AsahiState): Light {
 	return "busy";
 }
 
-function machineLabel({ source, machineView }: AsahiState): string {
+function machineStatusLabel({ source, machineView }: AsahiState): string {
 	if (source.kind !== "machine") return "";
 	if (machineView === "up") return source.name;
 	if (machineView === "ended") return `${source.name} closed`;
