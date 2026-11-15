@@ -23,7 +23,7 @@
 		"bundle": "node tools/bundle.ts"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "2.6.3",
+		"@biomejs/biome": "2.6.4",
 		"@material/material-color-utilities": "0.3.0",
 		"@types/node": "26.6.6",
 		"@wonderhoy-labs/shiho": "https://github.com/wonderhoy-labs/shiho/releases/download/v0.2.0/wonderhoy-labs-shiho-0.2.0.tgz",
